@@ -1,0 +1,226 @@
+---
+title: spec-loop status
+description: Display current progress for all active specs
+---
+
+## Usage
+
+```bash
+spec-loop status
+```
+
+Shows progress for all active specs (specs with remaining tasks) in a formatted dashboard.
+
+## Output
+
+### Active Spec
+
+```
+spec-loop v0.3.1
+
+╭─ user-auth ──────────────────────────────────────╮
+│                                                  │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│  → Next: Task 4: Add JWT middleware              │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+  Recent commits
+    abc1234 spec-loop: completed task 3 - Add login endpoint
+    def5678 spec-loop: completed task 2 - Setup password hashing
+    ghi9012 spec-loop: completed task 1 - Create user model
+```
+
+### Multiple Active Specs
+
+```
+spec-loop v0.3.1
+
+╭─ user-auth ──────────────────────────────────────╮
+│                                                  │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│  → Next: Task 4: Add JWT middleware              │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+╭─ email-notifications ────────────────────────────╮
+│                                                  │
+│  ██░░░░░░░░░░░░░░ 1/5 done ◆ 4 remaining         │
+│  3 pending ◆ 1 in-progress                        │
+│  0 in-review ◆ 0 blocked                          │
+│  feat/email-notifications                        │
+│  → Next: Task 2: Add email templates             │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+  Recent commits
+    ...
+```
+
+### No Active Specs
+
+```
+spec-loop v0.3.1
+
+  ℹ No active specs (all tasks done or none created).
+  ℹ Use /spec-loop-spec to create a new feature spec.
+```
+
+### No Specs Directory
+
+```
+spec-loop v0.3.1
+
+  ℹ No specs directory found. Run 'spec-loop init' first.
+```
+
+## Information Displayed
+
+For each active spec:
+
+<ResponseField name="Spec name">
+  Name of the feature spec (directory name)
+</ResponseField>
+
+<ResponseField name="Progress bar">
+  Visual representation of completed vs total tasks
+  
+  Example: `████████░░░░░░░░ 3/7 done`
+</ResponseField>
+
+<ResponseField name="Task counts by status">
+  - **Pending**: Not yet started
+  - **In-progress**: Currently being worked on
+  - **In-review**: Completed but needs manual review
+  - **Blocked**: Cannot proceed (requires human intervention)
+  - **Done**: Completed and reviewed
+</ResponseField>
+
+<ResponseField name="Git branch">
+  Current branch for the repository
+</ResponseField>
+
+<ResponseField name="Next task">
+  The next task that will be picked up by `spec-loop run`
+</ResponseField>
+
+<ResponseField name="Recent commits">
+  Last 5 git commits (if git is available)
+</ResponseField>
+
+## Task Status Definitions
+
+| Status | Description | Next Action |
+|--------|-------------|-------------|
+| `pending` | Task not started | Will be picked up by next `spec-loop run` |
+| `in-progress` | Task currently being worked on | Continue with build phase |
+| `in-review` | Build complete, review failed or skipped | Manual review required or retry with `spec-loop run` |
+| `blocked` | Cannot proceed automatically | Human intervention required (check task file for details) |
+| `done` | Task completed and passed review | No action needed |
+
+## Task Selection Order
+
+When `spec-loop run` starts, it selects tasks in this order:
+
+1. **First `pending` task** (by filename order: `task-01.md`, `task-02.md`, ...)
+2. If no pending tasks, **first `in-progress` or `in-review` task**
+3. If no tasks available, marks spec complete
+
+## Examples
+
+### Check status before running
+
+```bash
+spec-loop status
+spec-loop run
+```
+
+### Check status in CI
+
+```bash
+spec-loop status
+if [ $? -eq 0 ]; then
+  echo "Status check passed"
+fi
+```
+
+### Monitor progress during development
+
+```bash
+# Terminal 1: Run the loop
+spec-loop run
+
+# Terminal 2: Watch status
+watch -n 10 spec-loop status
+```
+
+## Exit Codes
+
+| Code | Description |
+|------|-------------|
+| `0` | Success (always, even if no specs found) |
+| `4` | Configuration error |
+
+## Output Format
+
+The status command uses:
+
+- **Box width**: Auto-calculated based on terminal width (52-72 characters)
+- **Progress bar**: 16-character visual indicator
+- **Diamond separator** (`◆`): Separates metric pairs
+
+## Git Integration
+
+**Recent commits** section shows:
+- Last 5 commits from `git log --oneline -5`
+- Only displayed if:
+  - Git is installed
+  - Current directory is a git repository
+  - Repository has commits
+
+## Use Cases
+
+### Daily standup
+
+```bash
+spec-loop status
+```
+
+Quickly show team what specs are in progress.
+
+### Pre-deploy check
+
+```bash
+spec-loop status | grep "blocked"
+if [ $? -eq 0 ]; then
+  echo "⚠ Blocked tasks found - review required"
+  exit 1
+fi
+```
+
+### Progress tracking
+
+```bash
+# Check remaining tasks
+spec-loop status | grep "remaining"
+```
+
+## Related Commands
+
+- [spec-loop run](/cli/run) - Start the development loop
+- [spec-loop init](/cli/init) - Initialize spec-loop
+
+## Spec Discovery
+
+The status command searches for specs in:
+
+- **Default**: `.agents/specs/`
+- **Custom**: Set `SPECS_DIR` in `.speclooprc` or `SPECLOOP_SPECS_DIR` env var
+
+Only shows specs with at least one task that is NOT `done`.

@@ -1,0 +1,460 @@
+---
+title: Contributing
+description: Help improve spec-loop development workflow
+---
+
+Contribute to spec-loop by reporting issues, submitting features, or improving documentation.
+
+## Development Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/surajpatildev/spec-loop.git
+    cd spec-loop
+    ```
+  </Step>
+
+  <Step title="Install Rust toolchain">
+    If not already installed:
+
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh
+    source $HOME/.cargo/env
+    ```
+
+    Verify:
+
+    ```bash
+    cargo --version
+    rustc --version
+    ```
+  </Step>
+
+  <Step title="Check the build">
+    ```bash
+    cargo check
+    ```
+
+    This compiles without producing binaries (faster than full build).
+  </Step>
+
+  <Step title="Run from source">
+    Test the CLI directly:
+
+    ```bash
+    ./bin/spec-loop version
+    ./bin/spec-loop help
+    ```
+
+    The `bin/spec-loop` launcher builds and runs the Rust binary.
+  </Step>
+</Steps>
+
+## Project Structure
+
+```
+spec-loop/
+├── bin/
+│   └── spec-loop           # CLI launcher (builds Rust binary)
+├── src/                    # Rust source code
+│   ├── main.rs            # Entry point
+│   ├── cli.rs             # Command-line argument parsing
+│   ├── commands.rs        # Command implementations (init, run, status)
+│   ├── config.rs          # .speclooprc parsing and project detection
+│   ├── spec.rs            # Spec and task file parsing
+│   ├── session.rs         # Session logging (JSON + Markdown)
+│   ├── claude.rs          # Claude Code integration (stream-json)
+│   ├── circuit_breaker.rs # Stagnation detection
+│   ├── prompts.rs         # Build/review/fix prompt templates
+│   ├── ui.rs              # Terminal UI (spinners, progress panels)
+│   ├── util.rs            # Helper functions
+│   └── constants.rs       # Constants and defaults
+├── .agents/
+│   ├── skills/            # Namespaced skills
+│   │   ├── spec-loop-spec/     # /spec-loop-spec skill
+│   │   └── spec-loop-status/   # /spec-loop-status skill
+│   └── templates/         # Spec and task templates
+│       ├── spec.md
+│       ├── task.md
+│       └── progress.md
+├── install.sh             # Installation script
+├── uninstall.sh           # Uninstallation script
+├── Cargo.toml             # Rust dependencies
+└── README.md
+```
+
+## Testing Changes
+
+### Unit Tests
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test test_name
+
+# Run with output
+cargo test -- --nocapture
+```
+
+<Note>
+  Currently, spec-loop has minimal unit tests. Integration testing is done manually.
+</Note>
+
+### Integration Testing
+
+Test in a temporary project:
+
+<Steps>
+  <Step title="Create test project">
+    ```bash
+    mkdir -p /tmp/test-project
+    cd /tmp/test-project
+    git init
+    ```
+  </Step>
+
+  <Step title="Initialize spec-loop">
+    ```bash
+    /path/to/spec-loop/bin/spec-loop init --no-wizard
+    ```
+
+    This creates `.speclooprc` and `.agents/` without prompts.
+  </Step>
+
+  <Step title="Create a test spec">
+    Manually create a minimal spec:
+
+    ```bash
+    mkdir -p .agents/specs/test-feature/tasks
+
+    # Create spec.md
+    cat > .agents/specs/test-feature/spec.md <<EOF
+    # Spec: Test Feature
+    > Status: in-progress
+
+    ## Tasks
+    | # | Task | Size | Depends | Files |
+    |---|------|------|---------|-------|
+    | 1 | Add test file | S | — | test.txt |
+    EOF
+
+    # Create task file
+    cat > .agents/specs/test-feature/tasks/01-add-test-file.md <<EOF
+    # Task 1: Add Test File
+    > Status: pending
+    > Size: S
+
+    ## What
+    Create a test.txt file.
+
+    ## Files
+    - test.txt — create
+
+    ## Acceptance
+    - File exists
+    EOF
+    ```
+  </Step>
+
+  <Step title="Run with dry-run">
+    ```bash
+    CLAUDE_BIN=true /path/to/spec-loop/bin/spec-loop run --dry-run --once
+    ```
+
+    Use `CLAUDE_BIN=true` to mock Claude Code (dry-run only).
+  </Step>
+
+  <Step title="Test with real Claude">
+    If you have Claude Code installed:
+
+    ```bash
+    /path/to/spec-loop/bin/spec-loop run --once
+    ```
+
+    Verify:
+    - Build phase completes
+    - Review phase runs
+    - Session logs created in `.spec-loop/sessions/`
+  </Step>
+</Steps>
+
+### Smoke Testing
+
+Before submitting PR, test in a real project:
+
+```bash
+# In your actual development project
+cd ~/projects/my-app
+
+# Use your spec-loop dev build
+SPEC_LOOP_BIN=/path/to/spec-loop/bin/spec-loop
+
+# Test common operations
+$SPEC_LOOP_BIN status
+$SPEC_LOOP_BIN run --dry-run
+```
+
+## Making Changes
+
+### Code Style
+
+<Accordion title="Rust formatting">
+  Use `rustfmt` for consistent formatting:
+
+  ```bash
+  cargo fmt
+  ```
+
+  Check before committing:
+
+  ```bash
+  cargo fmt -- --check
+  ```
+</Accordion>
+
+<Accordion title="Linting">
+  Use `clippy` for lint checks:
+
+  ```bash
+  cargo clippy
+  ```
+
+  Fix warnings when possible:
+
+  ```bash
+  cargo clippy --fix
+  ```
+</Accordion>
+
+### Commit Messages
+
+Follow conventional commit format:
+
+```bash
+feat: add --budget flag for cost limiting
+fix: handle missing .speclooprc gracefully
+docs: update installation instructions
+refactor: extract session logging to module
+test: add circuit breaker unit tests
+```
+
+Types:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `refactor`: Code change without behavior change
+- `test`: Adding tests
+- `chore`: Maintenance (dependencies, etc.)
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Create feature branch">
+    ```bash
+    git checkout -b feat/your-feature-name
+    ```
+
+    Use prefixes:
+    - `feat/` for features
+    - `fix/` for bug fixes
+    - `docs/` for documentation
+  </Step>
+
+  <Step title="Make changes">
+    Develop your changes with regular commits:
+
+    ```bash
+    # Make changes
+    cargo check
+    cargo test
+
+    # Commit
+    git add .
+    git commit -m "feat: add new feature"
+    ```
+  </Step>
+
+  <Step title="Run checks">
+    Before pushing:
+
+    ```bash
+    # Format code
+    cargo fmt
+
+    # Check compilation
+    cargo check
+
+    # Run tests
+    cargo test
+
+    # Lint
+    cargo clippy
+
+    # Smoke test
+    ./bin/spec-loop version
+    ```
+  </Step>
+
+  <Step title="Push and create PR">
+    ```bash
+    git push -u origin feat/your-feature-name
+    ```
+
+    Create PR on GitHub with:
+    - Clear title describing the change
+    - Description of what and why
+    - How to test the changes
+    - Related issue numbers (if any)
+  </Step>
+</Steps>
+
+### PR Checklist
+
+<Accordion title="Before submitting">
+  - [ ] Code compiles: `cargo check`
+  - [ ] Tests pass: `cargo test`
+  - [ ] Formatted: `cargo fmt`
+  - [ ] No clippy warnings: `cargo clippy`
+  - [ ] Smoke tested in real project with `--dry-run`
+  - [ ] Documentation updated if needed
+  - [ ] Commit messages follow conventions
+  - [ ] PR description is clear
+</Accordion>
+
+## Areas for Contribution
+
+### High Priority
+
+<CardGroup cols={2}>
+  <Card title="Parallel Tasks" icon="arrows-split">
+    Implement concurrent task execution for independent tasks
+  </Card>
+  <Card title="Interactive Mode" icon="terminal">
+    Add user prompts after review failures
+  </Card>
+  <Card title="Cost Budget" icon="dollar-sign">
+    Add --budget flag to limit spending per run
+  </Card>
+  <Card title="Git Diff Preview" icon="code-compare">
+    Show diff summary before review phase
+  </Card>
+</CardGroup>
+
+### Medium Priority
+
+<Accordion title="Webhook Notifications">
+  POST to URL on loop completion for Slack/Discord integration.
+
+  **Requirements:**
+  - `--webhook <url>` flag
+  - JSON payload with spec, cost, duration
+  - Non-blocking (background request)
+  - Fire on any exit reason
+</Accordion>
+
+<Accordion title="Session Replay">
+  `spec-loop replay <session>` to playback sessions with timing.
+
+  **Requirements:**
+  - Read session.json for timing
+  - Replay terminal output with delays
+  - `--speed 2x` for faster playback
+  - Good for demos and debugging
+</Accordion>
+
+<Accordion title="Better Test Coverage">
+  Add unit and integration tests:
+
+  - Spec/task parsing
+  - Circuit breaker logic
+  - Session logging
+  - Config file parsing
+  - Project type detection
+</Accordion>
+
+### Documentation
+
+<Accordion title="Example projects">
+  Create template projects demonstrating:
+  - TypeScript/Node.js app
+  - Python FastAPI service
+  - Rust CLI tool
+  - Each with working spec examples
+</Accordion>
+
+<Accordion title="Video tutorials">
+  Create screencasts showing:
+  - Installation and setup
+  - First spec creation
+  - Full loop execution
+  - Troubleshooting common issues
+</Accordion>
+
+## Development Tips
+
+<Accordion title="Fast iteration cycle">
+  During development:
+
+  ```bash
+  # Check without building
+  cargo check
+
+  # Build only when testing
+  cargo build
+
+  # Or use the launcher (builds automatically)
+  ./bin/spec-loop --help
+  ```
+
+  `cargo check` is faster than `cargo build`.
+</Accordion>
+
+<Accordion title="Debug logging">
+  Add debug prints:
+
+  ```rust
+  eprintln!("Debug: task_id = {:?}", task_id);
+  ```
+
+  Run with stderr visible:
+
+  ```bash
+  ./bin/spec-loop run 2>&1 | tee debug.log
+  ```
+</Accordion>
+
+<Accordion title="Test without Claude Code">
+  Mock Claude for testing:
+
+  ```bash
+  # Create mock claude script
+  cat > /tmp/mock-claude <<'EOF'
+  #!/bin/bash
+  echo '{"type":"result","success":true}'
+  EOF
+  chmod +x /tmp/mock-claude
+
+  # Use mock in tests
+  CLAUDE_BIN=/tmp/mock-claude ./bin/spec-loop run --dry-run
+  ```
+</Accordion>
+
+## Getting Help
+
+Need help contributing?
+
+<CardGroup cols={2}>
+  <Card title="GitHub Discussions" icon="comments" href="https://github.com/surajpatildev/spec-loop/discussions">
+    Ask questions and discuss ideas
+  </Card>
+  <Card title="Issues" icon="github" href="https://github.com/surajpatildev/spec-loop/issues">
+    Report bugs or request features
+  </Card>
+</CardGroup>
+
+<Note>
+  All contributions are welcome, regardless of size. Documentation improvements, bug reports, and feature ideas are just as valuable as code.
+</Note>

@@ -1,0 +1,340 @@
+---
+title: Installation
+description: Install spec-loop CLI on your machine
+---
+
+spec-loop can be installed using the automated installer script, built from source with Cargo, or set up for local development.
+
+## Prerequisites
+
+<Note>
+  Before installing spec-loop, ensure you have the required dependencies.
+</Note>
+
+### Required
+
+<Steps>
+  <Step title="Claude Code CLI">
+    spec-loop requires the Claude Code CLI to be installed and available in your PATH.
+    
+    Verify installation:
+    ```bash
+    claude --version
+    ```
+    
+    If not installed, get it from [claude.ai/claude-code](https://claude.ai/claude-code)
+  </Step>
+  
+  <Step title="Rust Toolchain">
+    You need `cargo` for building spec-loop (even when using the installer).
+    
+    Check if already installed:
+    ```bash
+    cargo --version
+    ```
+    
+    If not installed:
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh
+    source $HOME/.cargo/env
+    ```
+  </Step>
+  
+  <Step title="tar utility">
+    Required by the installer to extract source code.
+    
+    Usually pre-installed on Linux/macOS. Verify with:
+    ```bash
+    tar --version
+    ```
+  </Step>
+</Steps>
+
+### Optional
+
+- **git** - Recommended for branch tracking and commit history features
+
+## Installation Methods
+
+### Method 1: Automated Installer (Recommended)
+
+The fastest way to get spec-loop running:
+
+```bash
+curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+```
+
+<Tip>
+  First-time installation takes 30-90 seconds depending on your machine and cargo cache.
+</Tip>
+
+After installation completes:
+
+```bash
+hash -r
+spec-loop version
+```
+
+Expected output:
+```
+spec-loop v0.3.1
+```
+
+#### Installation Location
+
+The installer places the binary at:
+```
+~/.local/bin/spec-loop
+```
+
+#### Add to PATH
+
+If the installer reports that `~/.local/bin` is not in your PATH, add it to your shell profile:
+
+<CodeGroup>
+```bash bash/zsh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+```bash zsh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+```bash fish
+fish_add_path $HOME/.local/bin
+```
+</CodeGroup>
+
+#### Custom Install Location
+
+To install to a different directory:
+
+```bash
+SPEC_LOOP_INSTALL_DIR="/usr/local" curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+```
+
+This installs to `/usr/local/bin/spec-loop` (may require sudo).
+
+#### Install Specific Version
+
+To install from a specific branch or tag:
+
+```bash
+SPEC_LOOP_REF="v0.3.0" curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+```
+
+### Method 2: Build from Source with Cargo
+
+For users who want to build directly:
+
+```bash
+# Clone the repository
+git clone https://github.com/surajpatildev/spec-loop.git
+cd spec-loop
+
+# Build and install
+cargo install --path .
+```
+
+This installs to `~/.cargo/bin/spec-loop`.
+
+Verify:
+```bash
+spec-loop version
+```
+
+### Method 3: Local Development Setup
+
+For contributing or testing changes:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/surajpatildev/spec-loop.git
+    cd spec-loop
+    ```
+  </Step>
+  
+  <Step title="Verify the project builds">
+    ```bash
+    cargo check
+    ```
+  </Step>
+  
+  <Step title="Run using the local wrapper">
+    ```bash
+    ./bin/spec-loop version
+    ```
+    
+    The `./bin/spec-loop` wrapper script builds in debug mode and runs the binary.
+  </Step>
+  
+  <Step title="Optional: Add to PATH">
+    Add the repo's bin directory to your PATH for easier access:
+    
+    ```bash
+    export PATH="$(pwd)/bin:$PATH"
+    spec-loop version
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Local development builds use debug mode, which is slower but includes helpful debugging information.
+</Note>
+
+## Verify Installation
+
+Run the following commands to ensure spec-loop is properly installed:
+
+<CodeGroup>
+```bash Check version
+spec-loop version
+# Output: spec-loop v0.3.1
+```
+
+```bash Check help
+spec-loop help
+# Shows available commands
+```
+
+```bash Check Claude Code
+claude --version
+# Verify Claude Code is accessible
+```
+</CodeGroup>
+
+If all commands work, you're ready to initialize your first project!
+
+## Upgrading
+
+To upgrade to the latest version, simply re-run the installer:
+
+```bash
+curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+hash -r
+spec-loop version
+```
+
+The installer automatically replaces the existing binary.
+
+## Uninstalling
+
+To remove spec-loop:
+
+```bash
+rm ~/.local/bin/spec-loop
+```
+
+Or if you installed with cargo:
+
+```bash
+cargo uninstall spec-loop
+```
+
+<Tip>
+  This only removes the binary. Project-specific files (`.speclooprc`, `.agents/`, `.spec-loop/`) remain in your projects and must be deleted manually if desired.
+</Tip>
+
+## Troubleshooting
+
+### "spec-loop: command not found"
+
+**Problem**: The binary is not in your PATH.
+
+**Solution**: Add the installation directory to your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+spec-loop version
+```
+
+Make it permanent by adding the export to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.).
+
+### "Required toolchain is missing"
+
+**Problem**: Cargo is not installed or not in PATH.
+
+**Solution**: Install Rust:
+
+```bash
+curl https://sh.rustup.rs -sSf | sh
+source $HOME/.cargo/env
+```
+
+Then re-run the spec-loop installer.
+
+### Installation Hangs During Build
+
+**Problem**: Cargo is compiling dependencies (first-time setup).
+
+**Solution**: Wait for it to complete (30-90 seconds). The installer shows a spinner with elapsed time.
+
+If it exceeds 5 minutes, check your internet connection and cargo cache:
+
+```bash
+rm -rf ~/.cargo/registry/cache
+```
+
+Then re-run the installer.
+
+### "tar: command not found"
+
+**Problem**: tar is not installed (rare on modern systems).
+
+**Solution on Ubuntu/Debian**:
+```bash
+sudo apt-get install tar
+```
+
+**Solution on macOS**:
+tar is pre-installed. If missing, reinstall Command Line Tools:
+```bash
+xcode-select --install
+```
+
+### Permission Denied
+
+**Problem**: Attempting to install to a system directory without sudo.
+
+**Solution 1**: Use the default user location:
+```bash
+curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+```
+
+**Solution 2**: Use sudo if installing to `/usr/local`:
+```bash
+SPEC_LOOP_INSTALL_DIR="/usr/local" curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | sudo bash
+```
+
+## Installing Claude Code Skills (Optional)
+
+spec-loop provides Claude Code skills for creating specs and checking status:
+
+```bash
+# Install all skills
+npx -y skills add surajpatildev/spec-loop --all -y
+```
+
+This adds:
+- `/spec-loop-spec` - Create feature specs for spec-loop
+- `/spec-loop-status` - Show spec-loop progress
+
+<Tip>
+  You can use spec-loop without installing skills. Skills just provide convenient slash commands in Claude Code.
+</Tip>
+
+To see available skills without installing:
+
+```bash
+npx -y skills add surajpatildev/spec-loop -l
+```
+
+## Next Steps
+
+<Card title="Quick Start" icon="rocket" href="/quickstart">
+  Now that spec-loop is installed, let's initialize your first project and run an automated development loop
+</Card>

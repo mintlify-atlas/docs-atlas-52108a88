@@ -1,0 +1,192 @@
+---
+title: spec-loop init
+description: Initialize spec-loop in your project with auto-detected configuration
+---
+
+## Usage
+
+```bash
+spec-loop init [OPTIONS]
+```
+
+Initializes spec-loop in the current project by creating configuration files, directory structure, and project templates.
+
+## What It Does
+
+1. **Auto-detects project type** - Identifies TypeScript, JavaScript, Python, Rust, Go, Ruby, Java, or Swift projects
+2. **Creates `.speclooprc`** - Configuration file with detected verify and test commands
+3. **Sets up directories**:
+   - `.agents/specs/` - Feature spec storage
+   - `.agents/templates/` - Customizable spec/task templates
+   - `.spec-loop/sessions/` - Runtime session logs (auto-gitignored)
+4. **Creates starter files**:
+   - `AGENTS.md` - Project conventions and rules for AI agents
+   - `.agents/decisions.md` - Design decisions log
+5. **Updates `.gitignore`** - Adds `.spec-loop/` to ignore session logs
+
+## Options
+
+<ParamField path="--force" type="boolean">
+  Overwrite existing `.speclooprc` file if it already exists.
+  
+  **Default**: `false`
+  
+  Without this flag, `init` will fail if `.speclooprc` already exists.
+</ParamField>
+
+<ParamField path="--no-wizard" type="boolean">
+  Skip interactive prompts and use auto-detection with defaults.
+  
+  **Default**: `false` (interactive mode enabled)
+  
+  Use this in CI/CD environments or when you want fully automated initialization.
+</ParamField>
+
+<ParamField path="--verify-cmd" type="string">
+  Override the auto-detected verify command.
+  
+  **Example**: `"cargo clippy && cargo check"`
+  
+  The verify command runs before each task to check code quality (linting, type checking).
+</ParamField>
+
+<ParamField path="--test-cmd" type="string">
+  Override the auto-detected test command.
+  
+  **Example**: `"npm test"`
+  
+  The test command runs during review phase to validate functionality.
+</ParamField>
+
+## Examples
+
+### Interactive initialization (default)
+
+```bash
+spec-loop init
+```
+
+**Output**:
+```
+spec-loop v0.3.1
+
+● Initializing spec-loop
+
+  ℹ Detected project type: typescript
+Project type [typescript]: 
+  ℹ Detected verify command: npm run lint && npm run typecheck
+Verify command [npm run lint && npm run typecheck]: 
+  ℹ Detected test command: npm test
+Test command [npm test]: 
+
+✓ Created .speclooprc
+✓ Created .agents/ and .spec-loop/ directories
+✓ Copied templates to .agents/templates/
+✓ Created .agents/decisions.md
+✓ Created starter AGENTS.md
+✓ Updated .gitignore
+
+✓ spec-loop initialized
+
+  ℹ Next: edit AGENTS.md with your project's rules
+  ℹ Then:  run /spec-loop-spec to create your first feature spec
+```
+
+### Non-interactive initialization
+
+```bash
+spec-loop init --no-wizard
+```
+
+Uses auto-detected values without prompting for confirmation.
+
+### Initialize with custom commands
+
+```bash
+spec-loop init --verify-cmd "make lint" --test-cmd "make test"
+```
+
+### Reinitialize existing project
+
+```bash
+spec-loop init --force
+```
+
+Overwrites existing `.speclooprc` while preserving other files.
+
+## Project Type Detection
+
+spec-loop auto-detects project type based on configuration files:
+
+| Project Type | Detection File | Default Verify Command | Default Test Command |
+|--------------|----------------|------------------------|----------------------|
+| TypeScript | `tsconfig.json` | `npm run lint && npm run typecheck` | `npm test` |
+| JavaScript | `package.json` | `npm run lint` | `npm test` |
+| Python | `pyproject.toml`, `setup.py` | `python -m py_compile` | `python -m pytest` |
+| Rust | `Cargo.toml` | `cargo clippy && cargo check` | `cargo test` |
+| Go | `go.mod` | `go vet ./...` | `go test ./...` |
+| Ruby | `Gemfile` | `bundle exec rubocop` | `bundle exec rspec` |
+| Java | `build.gradle` | `./gradlew check` | `./gradlew test` |
+| Swift | `Package.swift` | `swift build` | `swift test` |
+
+<Note>
+If no project files are detected, `init` creates a generic configuration with empty verify/test commands.
+</Note>
+
+## Created Directory Structure
+
+```
+your-project/
+├── .speclooprc              # Configuration file
+├── .gitignore               # Updated with .spec-loop/
+├── AGENTS.md                # Project rules for AI
+├── .agents/
+│   ├── specs/               # Feature specs (created via /spec-loop-spec)
+│   ├── templates/
+│   │   ├── spec.md          # Spec template
+│   │   ├── task.md          # Task template
+│   │   └── progress.md      # Progress template
+│   └── decisions.md         # Design decisions log
+└── .spec-loop/
+    └── sessions/            # Runtime logs (gitignored)
+```
+
+## Next Steps
+
+After initialization:
+
+1. **Edit `AGENTS.md`** - Add your project's:
+   - Architecture overview
+   - Coding conventions
+   - Review checklist
+   - Common patterns to follow
+
+2. **Create a spec** - Use Claude Code:
+   ```bash
+   /spec-loop-spec Add user authentication
+   ```
+
+3. **Run the loop**:
+   ```bash
+   spec-loop run
+   ```
+
+## Error Handling
+
+<ResponseField name=".speclooprc already exists">
+  **Solution**: Use `--force` to overwrite, or manually remove the file first.
+  
+  ```bash
+  spec-loop init --force
+  ```
+</ResponseField>
+
+<ResponseField name="Non-interactive mode requires terminal">
+  If stdin/stdout are not terminals, `--no-wizard` is automatically enabled.
+</ResponseField>
+
+## See Also
+
+- [spec-loop run](/cli/run) - Run the build-review-fix loop
+- [.speclooprc configuration](/cli/speclooprc) - Configuration file reference
+- [Environment variables](/cli/environment-variables) - Environment overrides

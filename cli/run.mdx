@@ -1,0 +1,388 @@
+---
+title: spec-loop run
+description: Execute the build-review-fix loop to complete spec tasks autonomously
+---
+
+## Usage
+
+```bash
+spec-loop run [OPTIONS]
+```
+
+Runs the autonomous development loop: for each task, build → review → fix (if needed) → mark complete.
+
+Continues until all tasks are done, a task is blocked, or max iterations reached.
+
+## Options
+
+<ParamField path="--spec" type="string">
+  Path to the spec directory to run.
+  
+  **Default**: Auto-detects the active spec (spec with remaining tasks)
+  
+  **Example**: `--spec .agents/specs/user-auth`
+</ParamField>
+
+<ParamField path="--max-loops" type="number">
+  Maximum number of build-review-fix iterations.
+  
+  **Default**: `25`
+  
+  **Config override**: Set `MAX_LOOPS` in `.speclooprc` or use `SPECLOOP_MAX_LOOPS` env var
+  
+  Prevents infinite loops. Each task can take multiple iterations if review fails.
+</ParamField>
+
+<ParamField path="--max-review-fix-loops" type="number">
+  Maximum number of review-fix retry attempts per task.
+  
+  **Default**: `3`
+  
+  **Config override**: Set `MAX_REVIEW_FIX_LOOPS` in `.speclooprc` or use `SPECLOOP_MAX_REVIEW_FIX_LOOPS` env var
+  
+  If review still fails after this many attempts, the task is marked `in-review` and the loop continues to the next task.
+</ParamField>
+
+<ParamField path="--max-tasks" type="number">
+  Maximum number of tasks to complete in this run.
+  
+  **Default**: `0` (unlimited)
+  
+  **Config override**: Set `MAX_TASKS_PER_RUN` in `.speclooprc` or use `SPECLOOP_MAX_TASKS_PER_RUN` env var
+  
+  Useful for rate limiting or breaking large specs into multiple runs.
+</ParamField>
+
+<ParamField path="--once" type="boolean">
+  Run a single build+review cycle, then exit.
+  
+  **Default**: `false`
+  
+  Equivalent to `--max-loops 1 --max-tasks 1`
+  
+  Useful for testing or step-by-step execution.
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean">
+  Print Claude Code commands without executing them.
+  
+  **Default**: `false`
+  
+  Shows what would run without making any changes. Session logs are still created.
+</ParamField>
+
+<ParamField path="--skip-review" type="boolean">
+  Build tasks without running review phase.
+  
+  **Default**: `false`
+  
+  Tasks are marked `in-review` instead of `done`. Manual review required.
+</ParamField>
+
+<ParamField path="--resume" type="boolean">
+  Resume the last interrupted session.
+  
+  **Default**: `false`
+  
+  Picks up from the last saved phase (build/review/fix). Useful after crashes or manual interruption.
+</ParamField>
+
+<ParamField path="--verbose" type="boolean">
+  Stream full Claude Code output to terminal.
+  
+  **Default**: `false`
+  
+  Shows real-time tool calls and responses. Output is always saved to session logs.
+</ParamField>
+
+## Examples
+
+### Basic run
+
+```bash
+spec-loop run
+```
+
+**Output**:
+```
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│  Task budget  0 this run                         │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+── Iteration 1 of 25 ◆ Task 4: Add JWT middleware ──
+
+● build
+    → session  model=claude-opus-4-6  id=9af31c8d
+    → Read     AGENTS.md
+    → Read     .agents/specs/user-auth/task-04.md
+    → Write    src/middleware/auth.ts
+    → Bash     npm run lint && npm run typecheck
+    ✓ result   45s ◆ $0.12 ◆ 8 tools
+
+● review
+    → session  id=a7b2f19e
+    → Bash     npm run lint && npm run typecheck
+    → Bash     npm test
+    ✓ PASS     0 must-fix ◆ 2 should-fix (non-blocking)
+
+✓ Task 4 complete → 3 remaining
+```
+
+### Run with task limit
+
+```bash
+spec-loop run --max-tasks 3
+```
+
+Completes up to 3 tasks, then exits. Next run continues from where it left off.
+
+### Single iteration
+
+```bash
+spec-loop run --once
+```
+
+Builds and reviews one task, then stops.
+
+### Dry run preview
+
+```bash
+spec-loop run --dry-run
+```
+
+Shows Claude Code commands that would execute without actually running them.
+
+### Resume interrupted session
+
+```bash
+spec-loop run --resume
+```
+
+Resumes from the last saved state (useful after `Ctrl+C` or crash).
+
+### Build without review
+
+```bash
+spec-loop run --skip-review
+```
+
+Quickly builds tasks and marks them `in-review` for manual checking.
+
+### Verbose output
+
+```bash
+spec-loop run --verbose
+```
+
+Streams full Claude Code tool calls to terminal in real-time.
+
+## Exit Codes
+
+| Code | Reason | Description |
+|------|--------|-------------|
+| `0` | Success | All tasks completed successfully |
+| `1` | Max iterations | Reached `--max-loops` with tasks still remaining |
+| `2` | Blocked | Build or review marked a task as `BLOCKED` |
+| `3` | Circuit breaker | No progress detected for consecutive iterations |
+| `4` | Error | Configuration error or runtime failure |
+
+## Loop Phases
+
+Each iteration consists of:
+
+### 1. Build Phase
+
+Claude Code:
+- Reads the next pending task from `.agents/specs/<spec-name>/task-XX.md`
+- Reads `AGENTS.md` for project conventions
+- Implements the task
+- Runs verify command (e.g., `npm run lint && npm run typecheck`)
+- Commits changes
+- Outputs `BUILD_STATUS` (one of: `COMPLETED_TASK`, `NO_PENDING_TASKS`, `BLOCKED`)
+
+### 2. Review Phase
+
+Claude Code:
+- Compares before/after state using git diff
+- Runs verify and test commands
+- Checks against `AGENTS.md` review checklist
+- Outputs:
+  - `REVIEW_STATUS` (`PASS` or `FAIL`)
+  - `MUST_FIX_COUNT` (blocking issues)
+  - `SHOULD_FIX_COUNT` (non-blocking suggestions)
+
+### 3. Fix Phase (if needed)
+
+If `MUST_FIX_COUNT > 0`:
+- Claude Code reads review findings and applies fixes
+- Re-runs review (up to `--max-review-fix-loops` times)
+- If still failing after max attempts, task marked `in-review`
+
+### 4. Task Completion
+
+- Task status updated to `done`
+- Iteration logged to `.spec-loop/sessions/<session-id>/`
+- Loop continues to next task
+
+## Session Management
+
+### Session Continuity
+
+spec-loop maintains session continuity across runs:
+
+```bash
+# First run
+spec-loop run --max-tasks 3
+# Completes tasks 1-3, session ID: 20260301_143022_user-auth
+
+# Second run (same session)
+spec-loop run --max-tasks 2
+# Completes tasks 4-5, same session ID
+
+# All logs in: .spec-loop/sessions/20260301_143022_user-auth/
+```
+
+### Resume State
+
+spec-loop saves resume state after each phase:
+
+```bash
+# Run interrupted during review phase
+spec-loop run
+^C  # User interrupts
+
+# Resume from review phase
+spec-loop run --resume
+```
+
+Resume state includes:
+- Current spec directory
+- Iteration number
+- Phase (build/review/fix)
+- Git SHA before build
+
+## Circuit Breaker
+
+Prevents infinite loops when no progress is made:
+
+**Triggers when**:
+- No tasks change status for `CB_NO_PROGRESS_THRESHOLD` consecutive iterations (default: 3)
+
+**Cooldown**:
+- `CB_COOLDOWN_MINUTES` must pass before retry (default: 30)
+
+**Configuration** (`.speclooprc`):
+```bash
+CB_NO_PROGRESS_THRESHOLD=3
+CB_COOLDOWN_MINUTES=30
+```
+
+**Output when tripped**:
+```
+⚠ Circuit breaker tripped (no progress for 3 iterations)
+  Cooldown: 30 minutes
+  Next allowed run: 2026-03-01 15:30:22
+```
+
+## Session Logs
+
+Each run creates/updates logs in `.spec-loop/sessions/<timestamp>_<spec-name>/`:
+
+### `session.json`
+
+Machine-readable session metadata:
+
+```json
+{
+  "spec_name": "user-auth",
+  "spec_dir": ".agents/specs/user-auth",
+  "started": 1709305822,
+  "ended": 1709312435,
+  "exit_reason": "COMPLETE",
+  "total_iterations": 7,
+  "total_cost_usd": 2.45,
+  "version": "0.3.1",
+  "claude_sessions": ["9af31c8d", "a7b2f19e", ...]
+}
+```
+
+### `session.md`
+
+Human-readable iteration summaries:
+
+```markdown
+# Session: user-auth
+
+## Iteration 1 - Task 1: Setup database schema
+- Outcome: pass
+- Duration: 125s
+- Cost: $0.34
+- Commit: abc1234
+
+## Iteration 2 - Task 2: Add login endpoint
+- Outcome: pass-after-fix
+- Duration: 187s  
+- Cost: $0.52
+- Must-fix: 2, Should-fix: 1
+- Commit: def5678
+```
+
+### `run.md`
+
+Full phase-by-phase logs with prompts and outputs:
+
+```markdown
+## Run 1 - 2026-03-01 14:30:22
+
+Mode: new | Once: false | Max tasks: 0 | Max loops: 25 | Skip review: false
+
+### Iteration 1 - Task 1: Setup database schema
+
+#### Phase: Build
+Status: COMPLETED_TASK | Cost: $0.12 | Duration: 45000ms
+Claude session: 9af31c8d
+
+<details><summary>Prompt</summary>
+
+[Full build prompt...]
+
+</details>
+
+<details><summary>Output</summary>
+
+[Full Claude output...]
+
+</details>
+```
+
+## Preflight Checks
+
+Before starting, `spec-loop run` verifies:
+
+- ✓ `.speclooprc` exists (`spec-loop init` required)
+- ✓ `claude` command is available (Claude Code CLI)
+- ✓ `.agents/specs/` directory exists
+- ✓ At least one spec with remaining tasks
+- ✓ `MAX_LOOPS` > 0
+- ✓ `MAX_REVIEW_FIX_LOOPS` > 0
+
+**Failure output**:
+```bash
+✗ No .speclooprc found. Run 'spec-loop init' first.
+```
+
+## See Also
+
+- [spec-loop init](/cli/init) - Initialize spec-loop
+- [spec-loop status](/cli/status) - Check spec progress
+- [.speclooprc configuration](/cli/speclooprc) - Configuration reference
+- [Environment variables](/cli/environment-variables) - Environment overrides

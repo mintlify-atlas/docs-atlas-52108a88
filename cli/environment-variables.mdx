@@ -1,0 +1,347 @@
+---
+title: Environment Variables
+description: Environment variable reference for spec-loop configuration
+---
+
+## Overview
+
+spec-loop can be configured via environment variables, which override settings from `.speclooprc` but are overridden by CLI flags.
+
+## Configuration Precedence
+
+```
+Defaults < .speclooprc < Environment Variables < CLI Flags
+```
+
+**Example**:
+```bash
+# .speclooprc has MAX_LOOPS=25
+export SPECLOOP_MAX_LOOPS=50  # Overrides .speclooprc
+spec-loop run --max-loops 10  # Overrides environment variable
+# Result: Uses 10 loops
+```
+
+## Available Variables
+
+### Claude Code Binary
+
+<ParamField path="CLAUDE_BIN" type="string">
+  Path or name of the Claude Code CLI binary.
+  
+  **Default**: `claude`
+  
+  **Also overrides**: `CLAUDE_BIN` in `.speclooprc`
+  
+  **Example**:
+  ```bash
+  export CLAUDE_BIN="/usr/local/bin/claude"
+  spec-loop run
+  ```
+</ParamField>
+
+### Claude Code Arguments
+
+<ParamField path="CLAUDE_EXTRA_ARGS" type="string">
+  Additional arguments to pass to Claude Code CLI on every invocation.
+  
+  **Default**: Empty string
+  
+  **Also overrides**: `CLAUDE_EXTRA_ARGS` in `.speclooprc`
+  
+  **Example**:
+  ```bash
+  export CLAUDE_EXTRA_ARGS="--debug --verbose"
+  spec-loop run
+  ```
+</ParamField>
+
+### Loop Limits
+
+<ParamField path="SPECLOOP_MAX_LOOPS" type="number">
+  Maximum number of build-review-fix iterations per run.
+  
+  **Default**: `25`
+  
+  **Also overrides**: `MAX_LOOPS` in `.speclooprc`
+  
+  **Overridden by**: `--max-loops` CLI flag
+  
+  **Example**:
+  ```bash
+  export SPECLOOP_MAX_LOOPS=50
+  spec-loop run
+  ```
+</ParamField>
+
+<ParamField path="SPECLOOP_MAX_REVIEW_FIX_LOOPS" type="number">
+  Maximum review-fix retry attempts per task.
+  
+  **Default**: `3`
+  
+  **Also overrides**: `MAX_REVIEW_FIX_LOOPS` in `.speclooprc`
+  
+  **Overridden by**: `--max-review-fix-loops` CLI flag
+  
+  **Example**:
+  ```bash
+  export SPECLOOP_MAX_REVIEW_FIX_LOOPS=5
+  spec-loop run
+  ```
+</ParamField>
+
+<ParamField path="SPECLOOP_MAX_TASKS_PER_RUN" type="number">
+  Maximum tasks to complete in a single run.
+  
+  **Default**: `0` (unlimited)
+  
+  **Also overrides**: `MAX_TASKS_PER_RUN` in `.speclooprc`
+  
+  **Overridden by**: `--max-tasks` CLI flag
+  
+  **Example**:
+  ```bash
+  export SPECLOOP_MAX_TASKS_PER_RUN=3
+  spec-loop run
+  ```
+</ParamField>
+
+### Path Settings
+
+<ParamField path="SPECLOOP_SPECS_DIR" type="string">
+  Directory containing feature specs.
+  
+  **Default**: `.agents/specs`
+  
+  **Also overrides**: `SPECS_DIR` in `.speclooprc`
+  
+  **Example**:
+  ```bash
+  export SPECLOOP_SPECS_DIR="docs/specs"
+  spec-loop run
+  ```
+</ParamField>
+
+<ParamField path="SPECLOOP_SESSION_DIR" type="string">
+  Directory for session logs.
+  
+  **Default**: `.spec-loop/sessions`
+  
+  **Also overrides**: `SESSION_DIR` in `.speclooprc`
+  
+  **Example**:
+  ```bash
+  export SPECLOOP_SESSION_DIR=".logs/spec-loop"
+  spec-loop run
+  ```
+</ParamField>
+
+## Usage Patterns
+
+### Per-Command Override
+
+```bash
+# Run once with custom limits
+SPECLOOP_MAX_LOOPS=10 spec-loop run
+```
+
+### Session-Wide Configuration
+
+```bash
+# Set for current shell session
+export SPECLOOP_MAX_LOOPS=50
+export SPECLOOP_MAX_TASKS_PER_RUN=5
+
+spec-loop run  # Uses 50 loops, 5 tasks max
+spec-loop run  # Still uses same settings
+```
+
+### Shell Profile Configuration
+
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export CLAUDE_BIN="$HOME/.local/bin/claude"
+export SPECLOOP_MAX_LOOPS=30
+
+# Reload shell
+source ~/.bashrc
+```
+
+### CI/CD Environment
+
+```yaml
+# .github/workflows/spec-loop.yml
+env:
+  SPECLOOP_MAX_LOOPS: 100
+  SPECLOOP_MAX_TASKS_PER_RUN: 10
+  CLAUDE_BIN: /usr/local/bin/claude
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: spec-loop run
+```
+
+### Docker Container
+
+```dockerfile
+# Dockerfile
+FROM ubuntu:22.04
+
+ENV SPECLOOP_MAX_LOOPS=50
+ENV SPECLOOP_SPECS_DIR=/app/specs
+ENV SPECLOOP_SESSION_DIR=/app/.spec-loop/sessions
+
+COPY . /app
+WORKDIR /app
+RUN spec-loop run
+```
+
+## Environment Variable Examples
+
+### Development Environment
+
+```bash
+# ~/.bashrc or ~/.zshrc
+# Local development with verbose output
+export CLAUDE_EXTRA_ARGS="--verbose"
+export SPECLOOP_MAX_LOOPS=30
+```
+
+### CI Environment
+
+```bash
+# Increase limits for CI
+export SPECLOOP_MAX_LOOPS=100
+export SPECLOOP_MAX_REVIEW_FIX_LOOPS=5
+export SPECLOOP_MAX_TASKS_PER_RUN=20
+```
+
+### Testing Environment
+
+```bash
+# Strict limits for testing
+export SPECLOOP_MAX_LOOPS=5
+export SPECLOOP_MAX_TASKS_PER_RUN=1
+```
+
+### Custom Paths
+
+```bash
+# Use different spec location
+export SPECLOOP_SPECS_DIR="docs/feature-specs"
+export SPECLOOP_SESSION_DIR="logs/spec-loop"
+```
+
+## Checking Current Configuration
+
+To see which configuration is active:
+
+```bash
+# Check environment variables
+env | grep SPECLOOP
+env | grep CLAUDE
+
+# Run with dry-run to see effective config
+spec-loop run --dry-run --verbose
+```
+
+## Unsetting Variables
+
+```bash
+# Remove environment variable
+unset SPECLOOP_MAX_LOOPS
+
+# Remove all spec-loop variables
+unset SPECLOOP_MAX_LOOPS
+unset SPECLOOP_MAX_REVIEW_FIX_LOOPS
+unset SPECLOOP_MAX_TASKS_PER_RUN
+unset SPECLOOP_SPECS_DIR
+unset SPECLOOP_SESSION_DIR
+unset CLAUDE_BIN
+unset CLAUDE_EXTRA_ARGS
+```
+
+## Validation
+
+Invalid environment variable values are ignored with a warning:
+
+```bash
+export SPECLOOP_MAX_LOOPS=invalid
+spec-loop run
+# Uses default or .speclooprc value instead
+```
+
+Numeric variables must be valid integers:
+
+```bash
+export SPECLOOP_MAX_LOOPS=10.5  # Invalid - not an integer
+spec-loop run
+# Ignores invalid value, uses .speclooprc or default
+```
+
+## Security Considerations
+
+<Warning>
+**Don't put secrets in environment variables** that are logged or displayed.
+</Warning>
+
+<Tip>
+**Use separate credentials** for CI/CD environments:
+```bash
+# Development
+export CLAUDE_BIN="claude"
+
+# CI/CD (use service account)
+export CLAUDE_BIN="/opt/claude-ci"
+```
+</Tip>
+
+## Troubleshooting
+
+### Variable not taking effect
+
+```bash
+# Check if variable is set
+echo $SPECLOOP_MAX_LOOPS
+
+# Check if overridden by CLI flag
+spec-loop run --max-loops 10
+# CLI flags always win
+```
+
+### Variable not visible to spec-loop
+
+```bash
+# Export is required for child processes
+SPECLOOP_MAX_LOOPS=50  # Wrong - not exported
+export SPECLOOP_MAX_LOOPS=50  # Correct
+
+# Or inline (automatically exported)
+SPECLOOP_MAX_LOOPS=50 spec-loop run
+```
+
+### Shell profile not loading
+
+```bash
+# Reload shell configuration
+source ~/.bashrc  # or ~/.zshrc
+
+# Or start a new shell
+exec $SHELL
+```
+
+## Comparison: Config Methods
+
+| Method | Scope | Committed | Override Order |
+|--------|-------|-----------|----------------|
+| `.speclooprc` | Project-wide | Yes (recommended) | 2 |
+| Environment variables | Shell session or global | No | 3 |
+| CLI flags | Single command | N/A | 4 (highest) |
+| Defaults | Global | N/A | 1 (lowest) |
+
+## See Also
+
+- [.speclooprc](/cli/speclooprc) - Configuration file reference
+- [spec-loop run](/cli/run) - CLI flag overrides
+- [spec-loop init](/cli/init) - Initialize configuration

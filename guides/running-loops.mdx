@@ -1,0 +1,605 @@
+---
+title: Running Loops
+description: Execute spec-loop's autonomous build-review-fix cycle
+---
+
+The `spec-loop run` command implements an autonomous development loop: for each task, it builds → reviews → fixes → commits until all tasks are complete or a blocker is encountered.
+
+## Quick Start
+
+After creating a spec:
+
+```bash
+spec-loop run
+```
+
+spec-loop will:
+1. Auto-detect the active spec in `.agents/specs/`
+2. Find the next eligible task (dependencies met)
+3. Build → Review → Fix → Commit for each task
+4. Continue until all tasks are done or max iterations reached
+
+## Loop Phases
+
+Each iteration consists of three phases:
+
+<Steps>
+  <Step title="Build">
+    Claude Code implements one task:
+    - Claims task by setting status `pending → in-progress`
+    - Implements only the requested scope
+    - Runs verify command and tests
+    - Updates task documentation with evidence
+    - Sets status to `in-review`
+    - Commits code changes
+    
+    Output: `BUILD_STATUS: COMPLETED_TASK | BLOCKED | NO_PENDING_TASKS`
+  </Step>
+
+  <Step title="Review">
+    Independent reviewer verifies the changes:
+    - Reviews only the git diff range
+    - Runs verify and test commands
+    - Checks against AGENTS.md conventions
+    - Reports must-fix, should-fix, and suggestions
+    
+    Output: `REVIEW_STATUS: PASS | FAIL` with issue counts
+  </Step>
+
+  <Step title="Fix (if needed)">
+    If review fails with must-fix issues:
+    - Applies fixes for must-fix items
+    - May address should-fix if low-risk
+    - Re-runs verification
+    - Commits fixes
+    - Review rechecks (up to `MAX_REVIEW_FIX_LOOPS` attempts)
+    
+    If still failing after max attempts, task is left in `in-review` state.
+  </Step>
+</Steps>
+
+## Command Options
+
+### Basic Usage
+
+<CodeGroup>
+```bash Run active spec
+spec-loop run
+```
+
+```bash Run specific spec
+spec-loop run --spec .agents/specs/user-auth
+```
+
+```bash Single iteration (test mode)
+spec-loop run --once
+```
+
+```bash Preview without executing
+spec-loop run --dry-run
+```
+</CodeGroup>
+
+### Loop Control
+
+| Option | Description | Default |
+|--------|-------------|------|
+| `--max-loops <n>` | Maximum iterations before stopping | 25 |
+| `--max-review-fix-loops <n>` | Review-fix retry attempts per task | 3 |
+| `--max-tasks <n>` | Max tasks to complete in one run | unlimited |
+| `--once` | Single build+review cycle (sets max-loops=1, max-tasks=1) | false |
+
+<Tabs>
+  <Tab title="Example: Short session">
+    ```bash
+    # Complete 2 tasks then stop
+    spec-loop run --max-tasks 2
+    ```
+    
+    Useful for incremental progress or testing.
+  </Tab>
+  
+  <Tab title="Example: Extended run">
+    ```bash
+    # Allow up to 50 iterations
+    spec-loop run --max-loops 50
+    ```
+    
+    For large features that may need more iterations.
+  </Tab>
+  
+  <Tab title="Example: Fast failure">
+    ```bash
+    # Fail fast on review issues
+    spec-loop run --max-review-fix-loops 1
+    ```
+    
+    Reduces cost when debugging spec quality.
+  </Tab>
+</Tabs>
+
+### Execution Modes
+
+<CodeGroup>
+```bash Verbose output
+spec-loop run --verbose
+```
+
+```bash Skip review phase
+spec-loop run --skip-review
+```
+
+```bash Resume interrupted session
+spec-loop run --resume
+```
+</CodeGroup>
+
+| Option | Description | Use Case |
+|--------|-------------|----------|
+| `--verbose` | Stream full Claude Code output | Debugging, understanding agent actions |
+| `--skip-review` | Build only, no review | Quick prototyping, trusted specs |
+| `--dry-run` | Print commands without executing | Preview behavior, verify configuration |
+| `--resume` | Resume last interrupted session | After crash or manual interruption |
+
+## Session Management
+
+### Session Directories
+
+Each run creates session logs in `.spec-loop/sessions/`:
+
+```
+.spec-loop/sessions/20260301_143022_user-auth/
+├── session.json     # Machine-readable analytics
+├── session.md       # Iteration summaries
+└── run.md           # Full run log with prompts and outputs
+```
+
+<Tabs>
+  <Tab title="session.json">
+    ```json
+    {
+      "spec_name": "user-auth",
+      "spec_dir": ".agents/specs/user-auth",
+      "started_at": 1735722622,
+      "ended_at": 1735724891,
+      "exit_reason": "COMPLETE",
+      "total_cost_usd": 1.24,
+      "total_iterations": 5,
+      "claude_sessions": [
+        "9af31c8d",
+        "b2e45f7a"
+      ]
+    }
+    ```
+    
+    High-level telemetry for analytics and cost tracking.
+  </Tab>
+  
+  <Tab title="session.md">
+    ```markdown
+    # Session: user-auth
+    
+    ## Iteration 1
+    Task: Create User model
+    Outcome: pass
+    Duration: 45s
+    Cost: $0.12
+    
+    ## Iteration 2
+    Task: Add JWT service
+    Outcome: pass-after-fix
+    Duration: 78s
+    Cost: $0.31
+    ```
+    
+    Human-readable iteration summaries.
+  </Tab>
+  
+  <Tab title="run.md">
+    ```markdown
+    ## Invocation 1
+    
+    Mode: new
+    Max loops: 25
+    Started: 2026-03-01 14:30:22
+    
+    ### Iteration 1
+    
+    #### Build
+    
+    Status: COMPLETED_TASK
+    Cost: $0.12
+    Duration: 45s
+    Session: 9af31c8d
+    
+    **Prompt:**
+    You are implementing exactly ONE pending task...
+    
+    **Output:**
+    [Full Claude Code output]
+    
+    BUILD_STATUS: COMPLETED_TASK
+    
+    #### Review
+    
+    Status: PASS; must_fix=0; should_fix=1
+    Cost: $0.08
+    Duration: 18s
+    
+    [Full review output]
+    ```
+    
+    Complete logs with prompts and outputs for debugging.
+  </Tab>
+</Tabs>
+
+### Session Continuation
+
+When you run `spec-loop run` again with the same spec:
+
+- If previous session ended with `--once` or `--max-tasks`: **continues same session**
+- If previous session completed or hit max-loops: **starts new session**
+
+Logs stay in one directory for the full feature lifecycle.
+
+<Note>
+Use `--resume` to pick up exactly where an interrupted session stopped (even mid-phase).
+</Note>
+
+## Exit Reasons
+
+spec-loop exits with specific codes and reasons:
+
+| Exit Code | Reason | Description |
+|-----------|--------|-------------|
+| 0 | `COMPLETE` | All tasks done |
+| 0 | `ONCE` | Single cycle completed (--once) |
+| 0 | `TASK_LIMIT` | Max tasks reached (--max-tasks) |
+| 1 | `MAX_ITERATIONS` | Hit max-loops with pending tasks |
+| 2 | `BLOCKED` | Task reported BLOCKED |
+| 3 | `CIRCUIT_OPEN` | Circuit breaker triggered |
+
+### Circuit Breaker
+
+The circuit breaker stops execution when progress stagnates:
+
+```
+No spec progress for 3 consecutive iterations
+→ Circuit breaker triggered
+→ Cooldown: 30 minutes
+```
+
+**Progress definition:**
+- Tasks completed count decreased
+- OR task status signature changed
+
+If neither occurs for `CB_NO_PROGRESS_THRESHOLD` iterations (default: 3), the circuit opens.
+
+<Warning>
+Circuit breaker prevents infinite loops when the model gets stuck. Review the session logs to understand what went wrong.
+</Warning>
+
+Configure in `.speclooprc`:
+
+```bash
+CB_NO_PROGRESS_THRESHOLD=5      # Iterations before triggering
+CB_COOLDOWN_MINUTES=60          # Cooldown before retry
+```
+
+## Monitoring Progress
+
+### During execution
+
+spec-loop displays real-time progress:
+
+```
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+── Iteration 1 of 25 ─────────────────────────────
+
+● build
+    → session  model=claude-opus-4-6  id=9af31c8d
+    ⠹ #4 Bash npm run lint && npm run typecheck 00:12
+```
+
+### Check status anytime
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    spec-loop status
+    ```
+    
+    Shows:
+    - Active specs with task counts
+    - Next eligible task
+    - Current branch
+    - Recent commits
+  </Tab>
+  
+  <Tab title="Claude Code Skill">
+    ```
+    /spec-loop-status
+    ```
+    
+    Same information, formatted for Claude Code.
+  </Tab>
+</Tabs>
+
+## Task Selection
+
+spec-loop automatically selects the next task to execute:
+
+<Steps>
+  <Step title="Find eligible tasks">
+    - Status is `pending`
+    - All dependencies are `done`
+  </Step>
+
+  <Step title="Priority order">
+    1. Lowest task number (dependency order)
+    2. First by filename if parallel tasks exist
+  </Step>
+
+  <Step title="Fallback to in-review">
+    If no pending tasks, attempts to find `in-review` tasks that may need fixes.
+  </Step>
+</Steps>
+
+## Build Phase Details
+
+The build phase prompt includes:
+
+<CodeGroup>
+```markdown Context
+## Spec
+
+Read spec.md, progress.md, and tasks in .agents/specs/user-auth/tasks/.
+
+## Project Rules
+
+Read and follow AGENTS.md in the project root.
+```
+
+```markdown Workflow
+1. Identify the next eligible task (status `pending`, dependencies met)
+2. Claim it by setting task status: `pending -> in-progress`
+3. Implement only the requested task scope
+4. Run verification and tests
+5. Update task documentation:
+   - Fill **Done** checklist with specific evidence
+   - Set status to `in-review` (not `done`)
+6. Append one entry to progress.md if present
+7. Commit code changes with specific file staging
+```
+
+```markdown Constraints
+- Complete one task or report BLOCKED
+- Keep response concise and factual
+- Never mark task `done` during build
+```
+</CodeGroup>
+
+The build agent also runs:
+
+- `VERIFY_COMMAND` (from .speclooprc)
+- `TEST_COMMAND` (from .speclooprc)
+
+If either fails, the task output includes the failure, triggering review to catch it.
+
+## Review Phase Details
+
+The review phase:
+
+1. **Runs git diff** for exact change range
+2. **Runs verify and test commands**
+3. **Checks against AGENTS.md** conventions
+4. **Reports issues by severity:**
+   - **Must fix:** Correctness, broken behavior, failing tests, security issues
+   - **Should fix:** Improvements that don't block completion
+   - **Suggestions:** Optional ideas
+
+<Note>
+If verify/test commands fail, review treats them as must-fix issues.
+</Note>
+
+Output format:
+
+```
+REVIEW_STATUS: PASS
+MUST_FIX_COUNT: 0
+SHOULD_FIX_COUNT: 1
+SUGGESTION_COUNT: 2
+```
+
+If `MUST_FIX_COUNT > 0`, the fix phase runs.
+
+## Fix Phase Details
+
+When review fails:
+
+<Steps>
+  <Step title="Apply fixes">
+    Claude Code receives review findings and fixes must-fix items.
+  </Step>
+
+  <Step title="Re-verify">
+    Runs verify and test commands again.
+  </Step>
+
+  <Step title="Commit fixes">
+    Commits fixes with explicit file staging.
+  </Step>
+
+  <Step title="Review recheck">
+    Review runs again on the new changes.
+  </Step>
+
+  <Step title="Repeat or continue">
+    - If still failing and attempts < `MAX_REVIEW_FIX_LOOPS`: repeat fix
+    - If still failing and attempts == `MAX_REVIEW_FIX_LOOPS`: leave task in `in-review`, continue to next
+    - If passing: mark task `done`, continue to next
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Incremental development
+
+```bash
+# Work in small batches
+spec-loop run --max-tasks 1  # Complete one task
+# Review output, adjust spec if needed
+spec-loop run --max-tasks 1  # Complete next task
+```
+
+### Long-running features
+
+```bash
+# Start overnight run
+spec-loop run --max-loops 100 --max-tasks 20 > spec-loop.log 2>&1 &
+
+# Check progress
+spec-loop status
+
+# Resume if interrupted
+spec-loop run --resume --max-loops 100 --max-tasks 20
+```
+
+### Testing spec quality
+
+```bash
+# Single iteration to validate spec
+spec-loop run --once --verbose
+
+# Check what would happen
+spec-loop run --dry-run
+```
+
+### Build-only prototyping
+
+```bash
+# Skip review for rapid prototyping
+spec-loop run --skip-review
+
+# Review manually later
+spec-loop run --spec .agents/specs/user-auth  # Will review in-review tasks
+```
+
+## Troubleshooting
+
+### Task stuck in in-review
+
+**Symptom:** Task status is `in-review` for multiple iterations.
+
+**Cause:** Review keeps failing after max fix attempts.
+
+**Solution:**
+1. Check `run.md` for review findings
+2. Review the actual changes: `git log --oneline -10`
+3. Fix manually or adjust spec acceptance criteria
+4. Update task status to `pending` to retry:
+   ```bash
+   # Edit task file, set Status: pending
+   spec-loop run
+   ```
+
+### Circuit breaker triggered
+
+**Symptom:** Exit reason `CIRCUIT_OPEN`.
+
+**Cause:** No progress for N consecutive iterations.
+
+**Solution:**
+1. Review `session.md` to see what tasks were attempted
+2. Check if tasks are too vague or dependencies are unclear
+3. Update spec with more specific guidance
+4. Increase threshold if tasks are legitimately complex:
+   ```bash
+   # .speclooprc
+   CB_NO_PROGRESS_THRESHOLD=5
+   ```
+5. Wait for cooldown (default 30min) or clear manually:
+   ```bash
+   rm .spec-loop/sessions/.circuit-breaker
+   ```
+
+### High cost / slow iterations
+
+**Symptom:** Iterations take minutes and cost adds up.
+
+**Cause:** Large context or complex spec.
+
+**Solutions:**
+- Use `--max-tasks` to limit run duration
+- Split large specs into smaller features
+- Use `--skip-review` for prototyping
+- Switch to cheaper model (if available):
+  ```bash
+  # .speclooprc
+  CLAUDE_MODEL="claude-sonnet-4"
+  ```
+
+### Verify command fails repeatedly
+
+**Symptom:** Review always reports verify command failure.
+
+**Cause:** Wrong verify command or environment issue.
+
+**Solution:**
+1. Run verify command manually to test:
+   ```bash
+   npm run lint && npm run typecheck  # or your verify command
+   ```
+2. Fix environment issues (missing deps, wrong node version)
+3. Update `.speclooprc` if command is wrong:
+   ```bash
+   VERIFY_COMMAND="npm run check"
+   ```
+
+## Cost Management
+
+spec-loop tracks cost per iteration and session:
+
+```json
+// session.json
+{
+  "total_cost_usd": 2.47,
+  "total_iterations": 8
+}
+```
+
+Cost-saving strategies:
+
+<Tip>
+**Use --max-tasks** to control run duration and cost per execution.
+</Tip>
+
+<Tip>
+**Test specs with --once** before committing to long runs.
+</Tip>
+
+<Tip>
+**Improve spec quality** to reduce fix iterations (each fix cycle = 2 extra Claude calls).
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure verify commands, loop limits, and environment
+  </Card>
+  <Card title="Claude Code Skills" icon="wand-magic-sparkles" href="/guides/claude-code-skills">
+    Use /spec-loop-spec and /spec-loop-status skills
+  </Card>
+</CardGroup>

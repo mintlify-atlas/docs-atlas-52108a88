@@ -1,0 +1,598 @@
+---
+title: Claude Code Skills
+description: Use spec-loop skills in Claude Code for integrated workflow
+---
+
+spec-loop provides Claude Code skills that integrate spec creation and status checking directly into your Claude Code sessions.
+
+## Installation
+
+Install all spec-loop skills:
+
+```bash
+npx -y skills add surajpatildev/spec-loop --all -y
+```
+
+<Note>
+Requires [claude-skills](https://github.com/anomalyco/claude-skills) package (installed automatically via npx).
+</Note>
+
+### Verify Installation
+
+List installed skills:
+
+```bash
+npx -y skills list
+```
+
+You should see:
+- `/spec-loop-spec` — Create feature specs
+- `/spec-loop-status` — Show spec progress
+
+### List Available Skills Without Installing
+
+```bash
+npx -y skills add surajpatildev/spec-loop -l
+```
+
+## /spec-loop-spec
+
+Create feature specifications with individual task files.
+
+### Usage
+
+In Claude Code:
+
+```
+/spec-loop-spec Add user authentication with JWT tokens
+```
+
+Claude will:
+1. Load context from `AGENTS.md` and templates
+2. Research your codebase for existing patterns
+3. Design backward from observable goals
+4. Generate `spec.md` and individual task files
+5. Present the plan for approval
+6. Create feature branch after approval
+
+### Workflow Steps
+
+<Steps>
+  <Step title="Understand the Feature">
+    Claude parses your description and asks clarifying questions if scope is ambiguous.
+    
+    **Don't assume — ask!**
+  </Step>
+
+  <Step title="Research Codebase">
+    Searches for:
+    - Related existing code
+    - Similar features to follow
+    - Architecture documentation
+    - Affected layers/modules
+  </Step>
+
+  <Step title="Design Backward from Goals">
+    Applies three-step reasoning:
+    
+    1. **Observable truths** — What must be TRUE when this works?
+    2. **Required artifacts** — What must EXIST for this to be true?
+    3. **Critical connections** — What must be CONNECTED to function?
+    
+    This produces sharper tasks with verifiable acceptance criteria.
+  </Step>
+
+  <Step title="Generate Spec Directory">
+    Creates:
+    ```
+    .agents/specs/<feature-name>/
+    ├── spec.md
+    ├── progress.md
+    └── tasks/
+        ├── 01-verb-noun.md
+        ├── 02-verb-noun.md
+        └── ...
+    ```
+  </Step>
+
+  <Step title="Present for Approval">
+    Shows:
+    - Summary of what will be built
+    - Total task count and scope estimate
+    - Dependency graph visualization
+    - Open questions needing human input
+    
+    **Waits for approval before proceeding.**
+  </Step>
+
+  <Step title="After Approval">
+    - Updates spec.md status to `in-progress`
+    - Creates feature branch: `feat/<feature-slug>`
+    - Tells you to run `spec-loop run`
+  </Step>
+</Steps>
+
+### Examples
+
+<Tabs>
+  <Tab title="Simple feature">
+    ```
+    /spec-loop-spec Add pagination to the items list API
+    ```
+    
+    Claude creates a minimal spec with 2-3 tasks since scope is clear.
+  </Tab>
+  
+  <Tab title="Complex feature">
+    ```
+    /spec-loop-spec Implement real-time collaboration with WebSockets, 
+    presence tracking, and conflict resolution for shared documents
+    ```
+    
+    Claude creates detailed spec with:
+    - Multiple tasks broken down by layer
+    - Dependency graph showing build order
+    - Edge cases and known pitfalls
+    - Testing strategy
+  </Tab>
+  
+  <Tab title="With requirements document">
+    ```
+    /spec-loop-spec Create the authentication system described in docs/auth-requirements.md
+    ```
+    
+    Claude reads the document and generates spec based on requirements.
+  </Tab>
+</Tabs>
+
+### Context Loading
+
+The skill automatically loads:
+
+<Steps>
+  <Step title="AGENTS.md">
+    Project conventions, architecture rules, naming patterns.
+    
+    The more specific your `AGENTS.md`, the better the spec quality.
+  </Step>
+
+  <Step title="Templates">
+    Custom spec/task templates from `.agents/templates/`.
+    
+    Uses your project's template structure if available.
+  </Step>
+
+  <Step title="Codebase Patterns">
+    Searches for similar features to follow existing patterns.
+    
+    Example: If you have `UserService`, it will follow that pattern for `ItemService`.
+  </Step>
+
+  <Step title="Architecture Docs">
+    Reads documentation from `docs/` directory.
+    
+    Aligns spec with documented architecture.
+  </Step>
+</Steps>
+
+### When to Use
+
+Use `/spec-loop-spec` when:
+
+<Check>
+**Feature requires 4+ files** or has unclear scope
+</Check>
+
+<Check>
+**Multiple developers** need to understand the plan
+</Check>
+
+<Check>
+**Feature spans multiple layers** (frontend + backend + database)
+</Check>
+
+<Check>
+**You want dependency tracking** and structured planning
+</Check>
+
+Skip it when:
+
+<Warning>
+Feature is trivial (< 3 files, obvious implementation) — just build directly
+</Warning>
+
+### Best Practices
+
+<Tip>
+**Be specific in your request:** "Add JWT auth with 24h expiration" is better than "add auth".
+</Tip>
+
+<Tip>
+**Reference existing code:** "Add items API following the users API pattern" helps Claude understand your style.
+</Tip>
+
+<Tip>
+**Ask for clarification:** If scope is unclear, let Claude ask questions rather than guessing.
+</Tip>
+
+## /spec-loop-status
+
+Show spec-loop progress and orientation.
+
+### Usage
+
+In Claude Code:
+
+```
+/spec-loop-status
+```
+
+Claude will:
+1. Find active specs (with pending/in-progress/in-review tasks)
+2. Count tasks by status
+3. Identify next eligible task
+4. Show recent progress and commits
+
+### When to Use
+
+<Tabs>
+  <Tab title="After compaction">
+    Claude Code compacts conversation history periodically. Use `/spec-loop-status` to re-orient.
+  </Tab>
+  
+  <Tab title="New session">
+    Starting a new Claude Code session? Use `/spec-loop-status` to see where you left off.
+  </Tab>
+  
+  <Tab title="Check progress">
+    Wondering how many tasks remain? Use `/spec-loop-status`.
+  </Tab>
+  
+  <Tab title="Picking up others' work">
+    Working on someone else's spec? Use `/spec-loop-status` to understand current state.
+  </Tab>
+</Tabs>
+
+### Example Output
+
+```
+## Active: user-auth
+
+Branch: feat/user-auth
+Tasks: 3/7 done | 1 in-review | 1 in-progress | 2 pending | 0 blocked
+Next: Task 4 — Add auth middleware (depends on: 2)
+
+### Recent Progress
+
+[2026-03-01 14:30] Task 3: Add auth routes — Implemented POST /auth/register and /auth/login
+[2026-03-01 13:45] Task 2: Add JWT service — Created AuthService.sign() and verify()
+[2026-03-01 13:15] Task 1: Create User model — Added User model with bcrypt password hashing
+
+## Recent Commits
+
+abc1234 feat(auth): add auth routes with registration and login
+def5678 feat(auth): add JWT service for token management
+ghi9012 feat(auth): create User model with password hashing
+```
+
+### Read-Only Operation
+
+<Note>
+`/spec-loop-status` is read-only and never modifies any files. Safe to run anytime.
+</Note>
+
+It reads:
+- Task files in `.agents/specs/*/tasks/`
+- `progress.md` logs
+- Git commit history
+- Current branch
+
+### Multiple Active Specs
+
+If you have multiple specs in progress:
+
+```
+## Active: user-auth
+
+Branch: feat/user-auth
+Tasks: 3/7 done | 1 in-review | 1 in-progress | 2 pending | 0 blocked
+Next: Task 4 — Add auth middleware
+
+## Active: realtime-collab
+
+Branch: feat/realtime-collab  
+Tasks: 1/5 done | 0 in-review | 1 in-progress | 3 pending | 0 blocked
+Next: Task 2 — Add WebSocket server
+
+## Recent Commits
+
+abc1234 feat(auth): add auth routes
+def5678 feat(collab): add presence tracking
+```
+
+All active specs are shown.
+
+### Stale Task Detection
+
+If a task is marked `in-progress` but has no recent commits:
+
+```
+Task 3: in-progress (possibly stale — no commits since 2026-02-28)
+```
+
+This helps identify abandoned or stuck tasks.
+
+## Integration with spec-loop run
+
+The skills complement the CLI workflow:
+
+<Steps>
+  <Step title="Create spec in Claude Code">
+    ```
+    /spec-loop-spec Add notification system with email and push
+    ```
+  </Step>
+
+  <Step title="Run autonomous loop">
+    ```bash
+    spec-loop run
+    ```
+    
+    Executes build-review-fix cycles autonomously.
+  </Step>
+
+  <Step title="Check progress in Claude Code">
+    ```
+    /spec-loop-status
+    ```
+    
+    See current state without leaving Claude Code.
+  </Step>
+
+  <Step title="Manual intervention if needed">
+    If tasks are blocked or review keeps failing:
+    - Check session logs in `.spec-loop/sessions/`
+    - Fix issues manually
+    - Update task status or spec
+    - Resume with `spec-loop run --resume`
+  </Step>
+</Steps>
+
+## Skill Configuration
+
+Skills respect project configuration:
+
+- Uses templates from `.agents/templates/` if available
+- Follows conventions in `AGENTS.md`
+- Creates specs in `SPECS_DIR` (from `.speclooprc`)
+- References `VERIFY_COMMAND` and `TEST_COMMAND` in task acceptance criteria
+
+### Custom Templates
+
+If you have custom templates in `.agents/templates/`:
+
+```
+.agents/templates/
+├── spec.md           # Custom spec structure
+├── task.md           # Custom task structure  
+└── progress.md       # Custom progress format
+```
+
+The `/spec-loop-spec` skill uses them automatically.
+
+## Advanced Usage
+
+### Iterative Spec Refinement
+
+<Steps>
+  <Step title="Create initial spec">
+    ```
+    /spec-loop-spec Add search functionality
+    ```
+  </Step>
+
+  <Step title="Review and refine">
+    Ask Claude to refine specific parts:
+    ```
+    Can you add more detail to Task 3? Include the exact Elasticsearch 
+    query structure we should use.
+    ```
+  </Step>
+
+  <Step title="Approve final version">
+    Once satisfied, approve the spec to create the branch.
+  </Step>
+</Steps>
+
+### Spec Updates During Development
+
+If you discover new requirements during implementation:
+
+<Steps>
+  <Step title="Check current state">
+    ```
+    /spec-loop-status
+    ```
+  </Step>
+
+  <Step title="Ask Claude to update spec">
+    ```
+    Add a new task to the user-auth spec for password reset functionality.
+    It should depend on Task 2 (JWT service) and run in parallel with Task 5.
+    ```
+  </Step>
+
+  <Step title="Continue execution">
+    ```bash
+    spec-loop run
+    ```
+  </Step>
+</Steps>
+
+### Multi-Spec Development
+
+Working on multiple features in parallel:
+
+```
+# Create multiple specs
+/spec-loop-spec Add user authentication
+/spec-loop-spec Add payment integration
+/spec-loop-spec Add analytics dashboard
+
+# Check status of all
+/spec-loop-status
+
+# Run specific spec
+spec-loop run --spec .agents/specs/user-auth
+```
+
+## Comparison: Skills vs CLI
+
+| Operation | Skill | CLI | Best For |
+|-----------|-------|-----|----------|
+| **Create spec** | `/spec-loop-spec` | Manual | Spec creation (skills faster, better context) |
+| **Check status** | `/spec-loop-status` | `spec-loop status` | Either (skills integrate with conversation) |
+| **Run loop** | N/A | `spec-loop run` | Autonomous execution (CLI only) |
+| **Resume session** | N/A | `spec-loop run --resume` | Recovery after interruption |
+| **View logs** | N/A | Read files | Debugging and analytics |
+
+<Tip>
+**Use skills for planning and status, CLI for execution.** This gives you the best of both: Claude's context-aware spec creation and spec-loop's autonomous execution.
+</Tip>
+
+## Troubleshooting
+
+### Skill not found
+
+**Symptom:** Claude says "Unknown skill: /spec-loop-spec"
+
+**Solution:**
+```bash
+# Reinstall skills
+npx -y skills add surajpatildev/spec-loop --all -y
+
+# Verify installation
+npx -y skills list
+```
+
+### Skill loads wrong context
+
+**Symptom:** Spec doesn't follow your project conventions.
+
+**Solution:**
+- Check `AGENTS.md` exists and is detailed
+- Ensure `.agents/templates/` contains your templates
+- Add more examples in `AGENTS.md` for Claude to follow
+
+### Can't approve spec
+
+**Symptom:** Claude presents spec but doesn't proceed after approval.
+
+**Solution:**
+- Explicitly say "I approve this spec" or "Looks good, proceed"
+- If still stuck, ask: "Please create the branch and tell me to run spec-loop run"
+
+### Status shows no active specs
+
+**Symptom:** `/spec-loop-status` says "No active specs".
+
+**Check:**
+- Do specs exist in `.agents/specs/`?
+- Are all tasks marked `done`? (If so, spec is complete)
+- Check if tasks have `Status: pending` or other active states
+
+## Tips and Best Practices
+
+<Tip>
+**Use /spec-loop-status frequently** — It's free (no API cost) and keeps you oriented.
+</Tip>
+
+<Tip>
+**Refine AGENTS.md over time** — As you notice patterns in your codebase, add them to AGENTS.md for better specs.
+</Tip>
+
+<Tip>
+**Ask Claude to explain specs** — After generation, ask "Can you walk me through the dependency graph?" for understanding.
+</Tip>
+
+<Tip>
+**Iterate on specs before approval** — Refine task details, add missing edge cases, adjust scope before approving.
+</Tip>
+
+<Warning>
+Don't skip approval step. Once approved, the skill creates the branch. Review carefully first.
+</Warning>
+
+## Example: End-to-End Workflow
+
+<Steps>
+  <Step title="Initialize project">
+    ```bash
+    cd my-project
+    spec-loop init
+    ```
+  </Step>
+
+  <Step title="Edit AGENTS.md">
+    Add project conventions, patterns, review checklist.
+  </Step>
+
+  <Step title="Install skills">
+    ```bash
+    npx -y skills add surajpatildev/spec-loop --all -y
+    ```
+  </Step>
+
+  <Step title="Create spec in Claude Code">
+    ```
+    /spec-loop-spec Add user authentication with JWT, including registration, 
+    login, logout, and token refresh endpoints
+    ```
+    
+    Review, refine, approve.
+  </Step>
+
+  <Step title="Run autonomous loop">
+    ```bash
+    spec-loop run --max-tasks 3
+    ```
+    
+    Completes 3 tasks then stops.
+  </Step>
+
+  <Step title="Check progress">
+    ```
+    /spec-loop-status
+    ```
+    
+    See remaining tasks and next task to execute.
+  </Step>
+
+  <Step title="Continue execution">
+    ```bash
+    spec-loop run
+    ```
+    
+    Finishes remaining tasks.
+  </Step>
+
+  <Step title="Review completion">
+    Check session logs:
+    ```bash
+    cat .spec-loop/sessions/20260301_143022_user-auth/session.json
+    ```
+    
+    Review cost, duration, iterations.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Specs" icon="file-pen" href="/guides/creating-specs">
+    Learn spec structure and best practices
+  </Card>
+  <Card title="Running Loops" icon="rotate" href="/guides/running-loops">
+    Master the build-review-fix cycle
+  </Card>
+</CardGroup>

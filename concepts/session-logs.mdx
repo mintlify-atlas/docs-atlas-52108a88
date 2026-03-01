@@ -1,0 +1,584 @@
+---
+title: Session Logs
+description: Understanding session logging, analytics, and telemetry
+---
+
+spec-loop creates comprehensive logs for every run, providing both human-readable summaries and machine-readable analytics for debugging, cost tracking, and performance monitoring.
+
+## Session Directory Structure
+
+Each run creates a timestamped session directory:
+
+```bash
+.spec-loop/sessions/20260301_143022_user-auth/
+├── session.json              # Machine-readable analytics
+├── session.md                # Human-readable iteration summaries
+├── run.md                    # Full run log with prompts and outputs
+└── .circuit_breaker.json     # Circuit breaker state (internal)
+```
+
+<Note>
+Session directories are named: `YYYYMMDD_HHMMSS_<spec-name>`, making them sortable by time.
+</Note>
+
+## session.json: Analytics
+
+Contains structured telemetry for programmatic analysis:
+
+```json
+{
+  "session_id": "20260301_143022_user-auth",
+  "version": "0.3.1",
+  "spec": ".agents/specs/user-auth",
+  "spec_name": "user-auth",
+  "started_at": "2026-03-01T14:30:22Z",
+  "ended_at": "2026-03-01T15:45:18Z",
+  "duration_seconds": 4496,
+  "total_cost_usd": 1.23,
+  "exit_reason": "ALL_TASKS_COMPLETE",
+  "total_iterations": 7,
+  "max_loops": 25,
+  "max_review_fix_loops": 3,
+  "max_tasks_per_run": 0,
+  "claude_sessions": [
+    "9af31c8d",
+    "b2e45a9f",
+    "c3d56b1e"
+  ],
+  "invocations": [
+    {
+      "started_at": "2026-03-01T14:30:22Z",
+      "mode": "run",
+      "once": false,
+      "max_tasks": 0,
+      "max_loops": 25,
+      "skip_review": false,
+      "claude_session_ids": ["9af31c8d", "b2e45a9f"]
+    }
+  ],
+  "iterations": [
+    {
+      "index": 1,
+      "task": "Add user model",
+      "outcome": "PASS",
+      "duration_seconds": 180,
+      "cost_usd": 0.08,
+      "must_fix_count": 0,
+      "should_fix_count": 0,
+      "commit": "a3f91c2e7",
+      "timestamp": "2026-03-01T14:33:22Z"
+    },
+    {
+      "index": 2,
+      "task": "Add auth routes",
+      "outcome": "PASS",
+      "duration_seconds": 245,
+      "cost_usd": 0.12,
+      "must_fix_count": 1,
+      "should_fix_count": 0,
+      "commit": "b4e82d3f",
+      "timestamp": "2026-03-01T14:37:27Z"
+    }
+  ]
+}
+```
+
+### Key Fields
+
+<Accordion title="Session Metadata">
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `session_id` | string | Unique identifier (same as directory name) |
+  | `version` | string | spec-loop version that created this session |
+  | `spec` | string | Path to spec directory |
+  | `spec_name` | string | Short name extracted from spec path |
+  | `started_at` | ISO 8601 | Session start timestamp |
+  | `ended_at` | ISO 8601 | Session end timestamp (null if running) |
+  | `duration_seconds` | number | Total session duration |
+  | `exit_reason` | string | Why session ended (see table below) |
+</Accordion>
+
+<Accordion title="Exit Reasons">
+  | Exit Reason | Meaning |
+  |-------------|----------|
+  | `ALL_TASKS_COMPLETE` | All tasks marked `done` |
+  | `BLOCKED` | Task cannot proceed, needs human help |
+  | `NO_PENDING_TASKS` | No tasks with status `pending` (may have `blocked` tasks) |
+  | `ONCE` | User ran with `--once` flag |
+  | `TASK_LIMIT` | Reached `--max-tasks` limit |
+  | `MAX_ITERATIONS` | Reached `--max-loops` limit |
+  | `CIRCUIT_OPEN` | Circuit breaker tripped |
+  | `USER_INTERRUPT` | User pressed Ctrl+C |
+</Accordion>
+
+<Accordion title="Cost and Telemetry">
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `total_cost_usd` | number | Total Claude API cost for session |
+  | `total_iterations` | number | Number of build-review-fix cycles |
+  | `max_loops` | number | Configured iteration limit |
+  | `max_review_fix_loops` | number | Configured review-fix limit per task |
+  | `claude_sessions` | string[] | All Claude session IDs used |
+</Accordion>
+
+<Accordion title="Invocations">
+  Tracks each `spec-loop run` command within the session (sessions can span multiple invocations via `--once` or `--max-tasks`).
+
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `started_at` | ISO 8601 | When this invocation started |
+  | `mode` | string | Command mode (usually "run") |
+  | `once` | boolean | `--once` flag was used |
+  | `max_tasks` | number | `--max-tasks` value (0 = unlimited) |
+  | `skip_review` | boolean | `--skip-review` flag was used |
+  | `claude_session_ids` | string[] | Claude sessions for this invocation |
+</Accordion>
+
+<Accordion title="Iterations">
+  Per-iteration metrics for each task attempt.
+
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `index` | number | Iteration number (1-indexed) |
+  | `task` | string | Task name being implemented |
+  | `outcome` | string | `PASS`, `FAIL`, `BLOCKED` |
+  | `duration_seconds` | number | Time for build+review+fix cycle |
+  | `cost_usd` | number | Claude API cost for this iteration |
+  | `must_fix_count` | number | Must-fix issues from review |
+  | `should_fix_count` | number | Should-fix issues from review |
+  | `commit` | string | Git commit SHA (short) |
+  | `timestamp` | ISO 8601 | When iteration completed |
+</Accordion>
+
+## session.md: Iteration Summaries
+
+Human-readable log with one entry per iteration:
+
+```markdown
+# Session Log
+
+## Iteration 1 — 2026-03-01 14:33:22
+- Task: Add user model
+- Outcome: PASS
+- Duration: 3m 0s
+- Cost: $0.08
+- Must-fix: 0
+- Should-fix: 0
+- Commit: a3f91c2
+
+## Iteration 2 — 2026-03-01 14:37:27
+- Task: Add auth routes
+- Outcome: PASS
+- Duration: 4m 5s
+- Cost: $0.12
+- Must-fix: 1
+- Should-fix: 0
+- Commit: b4e82d3
+
+## Iteration 3 — 2026-03-01 14:42:15
+- Task: Add middleware
+- Outcome: FAIL
+- Duration: 2m 30s
+- Cost: $0.06
+- Must-fix: 2
+- Should-fix: 1
+- Commit: (none - fixes pending)
+```
+
+<Info>
+This file is perfect for quick scans of session progress without parsing JSON.
+</Info>
+
+## run.md: Full Run Log
+
+Complete log with prompts, outputs, and Claude session IDs for every phase:
+
+```markdown
+# Run Log
+
+- Spec: user-auth
+- Spec path: .agents/specs/user-auth
+- Started: 2026-03-01 14:30:22
+
+---
+
+## Invocation — 2026-03-01 14:30:22
+- Spec-loop Session ID: 20260301_143022_user-auth
+- Mode: run
+- Flags: once=false, max_tasks=0, max_loops=25, skip_review=false
+- Claude Sessions: recorded per phase below and in session.json invocations[].claude_session_ids
+
+## Iteration 1 — 2026-03-01 14:30:22
+- Task: Add user model
+
+### build
+- Status: COMPLETED_TASK
+- Duration: 1m 45s
+- Cost: $0.05
+- Claude Session: 9af31c8d
+
+#### Prompt
+
+You are implementing exactly ONE pending task from a feature spec.
+
+## Spec
+
+.agents/specs/user-auth
+
+Read spec.md, progress.md (if present), and tasks in .agents/specs/user-auth/tasks/.
+
+## Workflow
+
+1. Identify the next eligible task (status `pending`, dependencies met).
+2. Claim it by setting task status: `pending -> in-progress`.
+...
+
+#### Output
+
+I'll implement task 1: Add user model.
+
+First, let me read the spec and task files...
+
+[Full Claude output]
+
+BUILD_STATUS: COMPLETED_TASK
+
+### review
+- Status: PASS
+- Duration: 1m 15s
+- Cost: $0.03
+- Claude Session: 9af31c8d
+
+#### Prompt
+
+You are an independent reviewer. Verify, do not trust claims.
+
+## Scope
+
+Review ONLY this range: `git diff a3e71b2..HEAD`.
+...
+
+#### Output
+
+Reviewing changes in commit range a3e71b2..HEAD
+
+[Full review output]
+
+REVIEW_STATUS: PASS
+MUST_FIX_COUNT: 0
+SHOULD_FIX_COUNT: 0
+SUGGESTION_COUNT: 0
+
+## Iteration 2 — 2026-03-01 14:37:27
+...
+```
+
+### Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Debugging" icon="bug">
+    See exact prompts and responses when tasks fail or get blocked.
+  </Card>
+  <Card title="Auditing" icon="clipboard-check">
+    Track what was implemented, when, and by which Claude session.
+  </Card>
+  <Card title="Prompt Engineering" icon="wand-magic-sparkles">
+    Analyze prompt effectiveness and refine instructions.
+  </Card>
+  <Card title="Cost Attribution" icon="dollar-sign">
+    Map costs to specific tasks and phases.
+  </Card>
+</CardGroup>
+
+## Session Creation and Continuation
+
+### Initial Session
+
+Created by `ensure_session_initialized()` (src/session.rs:140-189):
+
+```rust
+pub fn ensure_session_initialized(
+    session_path: &Path,
+    spec_dir: &Path,
+    spec_name: &str,
+    cfg: &Config,
+    version: &str,
+) -> Result<()> {
+    fs::create_dir_all(session_path)?;
+
+    let json_path = session_json_path(session_path);
+    if !json_path.exists() {
+        let data = SessionJson {
+            session_id: session_path.file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "unknown-session".to_string()),
+            version: version.to_string(),
+            spec: spec_dir.display().to_string(),
+            spec_name: spec_name.to_string(),
+            started_at: now_iso(),
+            max_loops: cfg.max_loops,
+            max_review_fix_loops: cfg.max_review_fix_loops,
+            max_tasks_per_run: cfg.max_tasks_per_run,
+            claude_sessions: vec![],
+            invocations: vec![],
+            iterations: vec![],
+            ended_at: None,
+            duration_seconds: None,
+            total_cost_usd: None,
+            exit_reason: None,
+            total_iterations: None,
+        };
+        write_session_json(&json_path, &data)?;
+    }
+
+    // Create run.md if it doesn't exist
+    let run_path = session_runlog_path(session_path);
+    if !run_path.exists() {
+        let run_md = format!(
+            "# Run Log\n\n- Spec: {}\n- Spec path: {}\n- Started: {}\n\n---\n",
+            spec_name,
+            spec_dir.display(),
+            now_human(),
+        );
+        fs::write(&run_path, run_md)?;
+    }
+
+    Ok(())
+}
+```
+
+### Session Continuation
+
+spec-loop detects when to continue an existing session:
+
+```rust
+// src/session.rs:458-465
+pub fn session_continuation_for_spec(session_dir: &Path, spec_dir: &Path) -> Option<PathBuf> {
+    let latest = session_latest_for_spec(session_dir, spec_dir)?;
+    let data = read_session_json(&session_json_path(&latest)).ok()?;
+    match data.exit_reason.as_deref() {
+        Some("ONCE") | Some("TASK_LIMIT") => Some(latest),
+        _ => None,
+    }
+}
+```
+
+If the last session exited with `ONCE` or `TASK_LIMIT`, the next run continues the same session directory. This keeps all logs together for a complete feature implementation.
+
+## Logging Functions
+
+### Invocation Header
+
+Logged at the start of each `spec-loop run` command:
+
+```rust
+// src/session.rs:191-234
+pub fn append_run_invocation_header(
+    session_path: &Path,
+    mode: &str,
+    once: bool,
+    max_tasks: u32,
+    max_loops: u32,
+    skip_review: bool,
+) -> Result<()>
+```
+
+### Iteration Header
+
+Logged at the start of each iteration:
+
+```rust
+// src/session.rs:236-248
+pub fn append_run_iteration_header(
+    session_path: &Path,
+    index: u32,
+    task_name: Option<&str>,
+) -> Result<()>
+```
+
+### Phase Results
+
+Logged after each build/review/fix phase:
+
+```rust
+// src/session.rs:276-316
+pub fn append_run_phase(
+    session_path: &Path,
+    phase_name: &str,
+    status: &str,
+    cost_usd: f64,
+    duration_ms: u64,
+    output: &str,
+    prompt: &str,
+    claude_session_id: &str,
+) -> Result<()>
+```
+
+Includes:
+- Phase name ("build", "review", "fix")
+- Status ("COMPLETED_TASK", "PASS", "FAIL", etc.)
+- Cost and duration
+- Full prompt sent to Claude
+- Full output from Claude
+- Claude session ID for tracing
+
+### Iteration Summary
+
+Logged after each complete iteration:
+
+```rust
+// src/session.rs:329-374
+pub fn append_iteration_log(session_path: &Path, input: IterationLogInput<'_>) -> Result<()>
+```
+
+Appends to both `session.md` (human-readable) and `session.json` iterations array.
+
+### Session Finalization
+
+Logged when session ends:
+
+```rust
+// src/session.rs:376-397
+pub fn finalize_session(
+    session_path: &Path,
+    started_epoch: i64,
+    total_cost_usd: f64,
+    exit_reason: &str,
+    total_iterations: u32,
+) -> Result<()>
+```
+
+Sets:
+- `ended_at` timestamp
+- `duration_seconds`
+- `total_cost_usd`
+- `exit_reason`
+- `total_iterations`
+
+## Claude Session Tracking
+
+spec-loop tracks Claude session IDs for debugging and audit purposes:
+
+```rust
+// src/session.rs:250-274
+pub fn register_claude_session(session_path: &Path, claude_session_id: &str) -> Result<()> {
+    let id = claude_session_id.trim();
+    if id.is_empty() {
+        return Ok(());
+    }
+
+    let json_path = session_json_path(session_path);
+    if !json_path.exists() {
+        return Ok(());
+    }
+
+    let mut data = read_session_json(&json_path)?;
+
+    // Add to session-level claude_sessions array
+    if !data.claude_sessions.iter().any(|v| v == id) {
+        data.claude_sessions.push(id.to_string());
+    }
+
+    // Add to current invocation's claude_session_ids array
+    if let Some(inv) = data.invocations.last_mut() {
+        if !inv.claude_session_ids.iter().any(|v| v == id) {
+            inv.claude_session_ids.push(id.to_string());
+        }
+    }
+
+    write_session_json(&json_path, &data)
+}
+```
+
+<Note>
+Claude session IDs can be used to access detailed logs in Claude Code's session history.
+</Note>
+
+## Cost Analysis Examples
+
+### Total Session Cost
+
+```bash
+# From session.json
+jq '.total_cost_usd' .spec-loop/sessions/*/session.json
+```
+
+### Cost Per Task
+
+```bash
+# Group iterations by task
+jq '.iterations | group_by(.task) | map({task: .[0].task, cost: map(.cost_usd) | add})' \
+  .spec-loop/sessions/20260301_143022_user-auth/session.json
+```
+
+Output:
+```json
+[
+  {"task": "Add user model", "cost": 0.08},
+  {"task": "Add auth routes", "cost": 0.18},
+  {"task": "Add middleware", "cost": 0.12}
+]
+```
+
+### Review Effectiveness
+
+```bash
+# Count first-pass vs multi-pass reviews
+jq '.iterations | group_by(.task) | map({task: .[0].task, attempts: length})' \
+  .spec-loop/sessions/20260301_143022_user-auth/session.json
+```
+
+## Resume State
+
+spec-loop stores resume state separately for `--resume` functionality:
+
+```bash
+.spec-loop/.session_state.json
+```
+
+Contents:
+```json
+{
+  "spec_dir": ".agents/specs/user-auth",
+  "loop_index": 3,
+  "session_path": ".spec-loop/sessions/20260301_143022_user-auth",
+  "phase": "review",
+  "before_sha": "a3f91c2e7",
+  "saved_at": "2026-03-01T14:35:45Z"
+}
+```
+
+This allows resuming mid-iteration after interruptions.
+
+<Warning>
+Resume state is cleared automatically on successful run completion. It persists only for interrupted runs.
+</Warning>
+
+## Log Retention
+
+Session logs are stored in `.spec-loop/sessions/` which should be **gitignored**:
+
+```bash
+# .gitignore
+.spec-loop/
+```
+
+**Rationale:**
+- Logs can be large (contain full prompts and outputs)
+- Contain potentially sensitive data (API keys in outputs, code snippets)
+- Are machine-specific (not useful in version control)
+
+<Note>
+If you need to share logs for debugging, manually copy specific session directories to a secure location.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="How It Works" icon="rotate" href="/concepts/how-it-works">
+    Review the build-review-fix loop
+  </Card>
+  <Card title="Workflow" icon="diagram-project" href="/concepts/workflow">
+    Learn the complete development workflow
+  </Card>
+</CardGroup>

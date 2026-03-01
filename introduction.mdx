@@ -1,0 +1,209 @@
+---
+title: Introduction
+description: Spec-driven autonomous development loop powered by Claude Code
+---
+
+<Note>
+  spec-loop automates the build-review-fix cycle for feature development. Write a spec, then let spec-loop build it — task by task, with automated code review and fix cycles.
+</Note>
+
+## What is spec-loop?
+
+spec-loop is a CLI tool that turns feature specifications into working code through autonomous development loops. It orchestrates Claude Code to:
+
+1. Break down feature specs into individual tasks
+2. Build each task using Claude Code
+3. Review the implementation against your project's standards
+4. Automatically fix issues and retry until it passes
+5. Move to the next task
+
+All while you focus on higher-level work or take a break.
+
+## Example in Action
+
+```bash
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+── Iteration 1 of 25 ─────────────────────────────
+
+● build
+    → session  model=claude-opus-4-6  id=9af31c8d
+    → Read     AGENTS.md
+    → Write    src/api/routes/auth.ts
+    → Bash     npm run lint && npm run typecheck
+    ✓ result   45s ◆ $0.12 ◆ 8 tools
+
+● review
+    ✓ PASS     0 must-fix ◆ 0 should-fix
+
+✓ Task 4 complete → 3 remaining
+```
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Autonomous Development" icon="robot">
+    Runs build-review-fix cycles automatically until tasks pass code review or hit safety limits
+  </Card>
+  
+  <Card title="Project-Aware Reviews" icon="magnifying-glass">
+    Reviews code against your project's conventions defined in AGENTS.md (architecture, naming, patterns)
+  </Card>
+  
+  <Card title="Safety First" icon="shield">
+    Circuit breaker detects stagnation, session resume recovers from interruptions, dry-run mode previews actions
+  </Card>
+  
+  <Card title="Detailed Session Logs" icon="file-lines">
+    Every run creates readable logs with costs, durations, Claude session IDs, and iteration summaries
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Create a Feature Spec">
+    Use the `/spec-loop-spec` Claude Code skill to create a feature spec with individual task files in `.agents/specs/`
+    
+    ```bash
+    /spec-loop-spec Add user authentication with JWT tokens
+    ```
+  </Step>
+  
+  <Step title="Run the Loop">
+    Launch spec-loop and watch it work through your tasks
+    
+    ```bash
+    spec-loop run
+    ```
+    
+    For each task, spec-loop:
+    - **Build**: Claude Code implements the task
+    - **Review**: Automated review checks against your project's standards
+    - **Fix**: If issues found, Claude Code fixes them (up to 3 attempts)
+    - **Commit**: Task marked done, moves to next one
+  </Step>
+  
+  <Step title="Check Progress">
+    Monitor status at any time
+    
+    ```bash
+    spec-loop status
+    ```
+    
+    Or use the `/spec-loop-status` skill in Claude Code
+  </Step>
+</Steps>
+
+## Why spec-loop?
+
+**Traditional development loop:**
+- You write code
+- You manually test
+- You fix issues
+- You repeat
+- Hours or days per feature
+
+**With spec-loop:**
+- You write a spec (5-10 minutes)
+- spec-loop builds, reviews, and fixes automatically
+- You review the final result
+- Ship features faster with consistent quality
+
+## Core Concepts
+
+### Specs and Tasks
+
+A **spec** is a feature broken down into individual **tasks**. Each task is a focused unit of work (add a route, create a component, write tests).
+
+```
+.agents/specs/user-auth/
+├── spec.md              # Feature overview
+├── task-01.md           # Setup JWT config
+├── task-02.md           # Create auth middleware
+├── task-03.md           # Add login endpoint
+└── ...
+```
+
+### AGENTS.md - Your Project's Rulebook
+
+This file tells spec-loop (and Claude Code) how your project works:
+- Architecture patterns
+- Naming conventions
+- Code style preferences
+- Review criteria
+- What to avoid
+
+spec-loop reads this file during build and review phases to ensure consistency.
+
+### Build-Review-Fix Loop
+
+Each task goes through:
+
+1. **Build phase**: Claude Code implements the task
+2. **Review phase**: Automated review generates findings (must-fix vs should-fix)
+3. **Fix phase** (if needed): Claude Code addresses must-fix issues
+4. **Recheck**: Review runs again
+5. **Done**: Task marked complete, or left in-review after max attempts
+
+### Circuit Breaker
+
+If spec-loop detects no progress after N iterations (default: 3), it opens the circuit breaker and stops. This prevents:
+- Infinite loops on blocked tasks
+- Wasting API credits
+- Thrashing on unsolvable problems
+
+You can resume after investigating the issue.
+
+## Requirements
+
+<CardGroup cols={2}>
+  <Card title="Claude Code CLI" icon="terminal">
+    The `claude` command must be available in your PATH
+    
+    [Get Claude Code →](https://claude.ai/claude-code)
+  </Card>
+  
+  <Card title="Rust Toolchain" icon="rust">
+    Required for installation (cargo build)
+    
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh
+    ```
+  </Card>
+</CardGroup>
+
+<Note>
+  **Optional but recommended**: git for branch tracking and commit history
+</Note>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Install spec-loop" icon="download" href="/installation">
+    Get spec-loop installed on your machine in under 2 minutes
+  </Card>
+  
+  <Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+    Go from zero to your first automated feature in 5 minutes
+  </Card>
+</CardGroup>
+
+## Project Status
+
+<Warning>
+  spec-loop is currently in **version 0.3.1** — early release. The core loop is stable, but expect some rough edges. Feature requests and bug reports welcome!
+</Warning>
+
+License: **MIT**  
+Repository: [surajpatildev/spec-loop](https://github.com/surajpatildev/spec-loop)

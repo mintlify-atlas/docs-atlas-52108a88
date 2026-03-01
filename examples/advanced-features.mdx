@@ -1,0 +1,395 @@
+---
+title: Advanced Features
+description: Master parallel tasks, session management, and optimization techniques
+---
+
+Learn advanced spec-loop features for complex projects and workflows.
+
+## Circuit Breaker
+
+spec-loop includes stagnation detection to prevent infinite loops.
+
+### How It Works
+
+The circuit breaker monitors progress and trips when:
+- Multiple iterations pass without completing tasks
+- Tasks are stuck in-progress or in-review
+- No meaningful changes to spec status
+
+<Accordion title="Example: Circuit breaker triggered">
+  ```
+  ✗ Circuit breaker: OPEN
+
+  Reason: No progress after 8 iterations
+  - Task 4: in-review for 5 iterations
+  - No spec state changes
+
+  Suggestions:
+  - Review the last task manually
+  - Check session logs: .spec-loop/sessions/20260301_143022_user-auth/
+  - Adjust AGENTS.md review criteria
+  - Run with --skip-review to bypass
+  ```
+</Accordion>
+
+### Manual Intervention
+
+When the circuit breaker trips:
+
+<Steps>
+  <Step title="Review session logs">
+    Check what's causing the stagnation:
+
+    ```bash
+    # View iteration summaries
+    cat .spec-loop/sessions/latest/session.md
+
+    # View full logs with prompts and outputs
+    cat .spec-loop/sessions/latest/run.md
+    ```
+  </Step>
+
+  <Step title="Fix the issue">
+    Common causes:
+
+    - **Review criteria too strict**: Relax `AGENTS.md` review checklist
+    - **Task too complex**: Break into smaller subtasks
+    - **Missing context**: Add examples to `.agents/reference/`
+    - **Tool failures**: Check `VERIFY_COMMAND` in `.speclooprc`
+  </Step>
+
+  <Step title="Resume or retry">
+    After fixing:
+
+    ```bash
+    # Resume from last state
+    spec-loop run --resume
+
+    # Or skip review for this task
+    spec-loop run --skip-review --once
+    ```
+  </Step>
+</Steps>
+
+## Session Management
+
+### Session Logs
+
+Each `spec-loop run` creates a session directory:
+
+```
+.spec-loop/sessions/20260301_143022_user-auth/
+├── session.json     # Machine-readable analytics
+├── session.md       # Human-readable iteration summaries
+└── run.md           # Full logs with prompts and outputs
+```
+
+<Accordion title="session.json structure">
+  ```json
+  {
+    "spec": "user-auth",
+    "start_time": "2026-03-01T14:30:22Z",
+    "end_time": "2026-03-01T15:42:18Z",
+    "duration_seconds": 4316,
+    "total_cost": 2.47,
+    "tasks_completed": 6,
+    "iterations": 12,
+    "exit_reason": "all_tasks_complete",
+    "claude_sessions": [
+      {
+        "phase": "build",
+        "task": 1,
+        "session_id": "9af31c8d",
+        "model": "claude-opus-4-6",
+        "cost": 0.12,
+        "duration_seconds": 45,
+        "tools_used": 8
+      }
+    ]
+  }
+  ```
+</Accordion>
+
+<Accordion title="session.md format">
+  ```markdown
+  # Session: user-auth
+  Started: 2026-03-01 14:30:22
+
+  ## Iteration 1
+  Task: 01-add-user-model
+  - Build: ✓ 45s $0.12 (claude-opus-4-6)
+  - Review: ✓ PASS (0 must-fix, 0 should-fix)
+  - Commit: abc1234 "Add user model with email and password fields"
+
+  ## Iteration 2
+  Task: 02-add-jwt-service
+  - Build: ✓ 62s $0.18 (claude-opus-4-6)
+  - Review: ✗ FAIL (2 must-fix)
+  - Fix: ✓ 31s $0.09
+  - Review: ✓ PASS
+  - Commit: def5678 "Add JWT service with sign/verify methods"
+  ```
+</Accordion>
+
+### Continuing Sessions
+
+Runs for the same spec share a session directory:
+
+```bash
+# First run (complete 3 tasks)
+spec-loop run --max-tasks 3
+
+# Later: continue same session
+spec-loop run
+```
+
+Both runs append to the same `session.json` and `run.md`.
+
+### Session Resume
+
+Resume interrupted runs:
+
+```bash
+spec-loop run --resume
+```
+
+<Note>
+  Resume picks up exactly where the last run stopped, including partial task progress.
+</Note>
+
+## Dry Run Mode
+
+Test your setup without calling Claude Code:
+
+```bash
+spec-loop run --dry-run
+```
+
+This shows:
+- Which tasks would be executed
+- Command arguments for each phase
+- Estimated loop flow
+- No API costs incurred
+
+<Accordion title="Example dry-run output">
+  ```
+  [DRY RUN] Would execute:
+
+  Task 1: 01-add-user-model (pending)
+  ─────────────────────────────────────
+  Build:
+    claude --stream-json \
+      --id build-task-1 \
+      --model claude-opus-4-6 \
+      --prompt @prompts/build.md \
+      --context AGENTS.md,.agents/specs/user-auth/tasks/01-add-user-model.md
+
+  Review:
+    claude --stream-json \
+      --id review-task-1 \
+      --model claude-sonnet-4-6 \
+      --prompt @prompts/review.md \
+      --context AGENTS.md,<git-diff>
+
+  [DRY RUN] Next: Task 2 (depends on Task 1)
+  ```
+</Accordion>
+
+## Parallel Tasks (Roadmap)
+
+<Warning>
+  Parallel task execution is planned but not yet implemented. See [Roadmap](/help/roadmap).
+</Warning>
+
+When available, spec-loop will detect independent tasks and run them concurrently.
+
+### Task Dependencies
+
+Mark dependencies in task files:
+
+```markdown
+# Task 5: Add Auth Routes
+
+> Depends on: 2, 3, 4
+```
+
+Tasks with no dependencies or all met can run in parallel:
+
+```
+Dependencies:
+1 → 2 → 5
+    3 → 5
+    4 → 5
+         6 [P]
+         7 [P]
+```
+
+Tasks 6 and 7 are marked `[P]` for parallel.
+
+## Custom Commands
+
+### Override Detection
+
+Customize commands per project:
+
+```bash
+# .speclooprc
+PROJECT_TYPE="typescript"
+VERIFY_COMMAND="npm run lint && npm run typecheck && npm run format:check"
+TEST_COMMAND="npm run test:unit && npm run test:integration"
+```
+
+### Environment Overrides
+
+Set per-run options with environment variables:
+
+```bash
+# Use different Claude binary
+CLAUDE_BIN=claude-dev spec-loop run
+
+# Pass extra args to Claude
+CLAUDE_EXTRA_ARGS="--timeout 300" spec-loop run
+
+# Override max loops
+SPECLOOP_MAX_LOOPS=100 spec-loop run
+
+# Use different specs directory
+SPECLOOP_SPECS_DIR=.custom-specs spec-loop run
+```
+
+## Optimization Strategies
+
+### Cost Control
+
+<Steps>
+  <Step title="Use task limits">
+    Control costs by limiting tasks per run:
+
+    ```bash
+    spec-loop run --max-tasks 5
+    ```
+
+    Process large specs incrementally.
+  </Step>
+
+  <Step title="Monitor session costs">
+    Check session.json after each run:
+
+    ```bash
+    jq '.total_cost' .spec-loop/sessions/latest/session.json
+    ```
+  </Step>
+
+  <Step title="Optimize task size">
+    Break large tasks (L) into multiple smaller tasks (S/M):
+
+    - Smaller tasks = fewer tokens per build
+    - More focused reviews = fewer fix cycles
+    - Better parallelization (when available)
+  </Step>
+</Steps>
+
+### Speed Optimization
+
+<Accordion title="Reduce verify command time">
+  Use faster checks in `VERIFY_COMMAND`:
+
+  ```bash
+  # Slow: full lint + typecheck + tests
+  VERIFY_COMMAND="npm run lint && npm run typecheck && npm test"
+
+  # Fast: lint + typecheck only
+  VERIFY_COMMAND="npm run lint && npm run typecheck"
+
+  # Fastest: typecheck only
+  VERIFY_COMMAND="npm run typecheck"
+  ```
+
+  Run full tests separately after spec completion.
+</Accordion>
+
+<Accordion title="Use --skip-review for drafts">
+  When prototyping:
+
+  ```bash
+  spec-loop run --skip-review --max-tasks 3
+  ```
+
+  Then review manually before continuing.
+</Accordion>
+
+<Accordion title="Optimize task dependencies">
+  Reduce sequential dependencies:
+
+  ```
+  # Sequential (slow when parallel tasks available)
+  1 → 2 → 3 → 4 → 5
+
+  # Parallelizable (faster)
+  1 → 2 → 5
+      3 → 5
+      4 → 5
+  ```
+
+  Group independent work into parallel tasks.
+</Accordion>
+
+## Reference Files
+
+Speed up builds by providing examples in `.agents/reference/`:
+
+```
+.agents/
+├── reference/
+│   ├── example-route.ts      # Reference API route
+│   ├── example-service.ts    # Reference service pattern
+│   ├── example-test.ts       # Reference test structure
+│   └── error-handling.md     # Error handling conventions
+└── templates/
+    ├── spec.md
+    └── task.md
+```
+
+The build agent reads these files for context:
+
+```markdown
+# Task 4: Add Login Route
+
+## How
+
+Follow the pattern in `.agents/reference/example-route.ts`:
+- Use express Router
+- Validate with Zod schema
+- Return standardized responses
+```
+
+<Note>
+  Reference files reduce token usage and improve consistency across tasks.
+</Note>
+
+## Verbose Mode
+
+See full Claude streaming output:
+
+```bash
+spec-loop run --verbose
+```
+
+Shows:
+- Complete tool-use events
+- Thinking/reasoning from Claude
+- Full stdout/stderr from commands
+- Detailed timing information
+
+Useful for debugging but generates large logs.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/help/troubleshooting">
+    Common issues and solutions
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/help/contributing">
+    Help improve spec-loop
+  </Card>
+</CardGroup>

@@ -1,0 +1,547 @@
+---
+title: Creating Specs
+description: Learn how to create feature specifications with spec-loop
+---
+
+Feature specs break down complex features into individual, trackable tasks. Use the `/spec-loop-spec` skill in Claude Code to generate specs, or create them manually following this guide.
+
+## When to Create a Spec
+
+Create a spec when:
+
+- Feature requires **4+ files** or has unclear scope
+- Multiple developers need to understand the implementation plan
+- Feature spans multiple components or layers
+- You want structured planning with dependency tracking
+
+<Tip>
+For simple features (< 3 files, obvious implementation), skip the spec and build directly.
+</Tip>
+
+## Using /spec-loop-spec Skill
+
+The fastest way to create a spec is using the Claude Code skill:
+
+<Steps>
+  <Step title="Install the skill">
+    ```bash
+    npx -y skills add surajpatildev/spec-loop --all -y
+    ```
+  </Step>
+
+  <Step title="Create a spec">
+    In Claude Code, use the skill with your feature description:
+    ```
+    /spec-loop-spec Add user authentication with JWT tokens
+    ```
+  </Step>
+
+  <Step title="Review and approve">
+    The skill will:
+    - Research your codebase for existing patterns
+    - Design backward from observable goals
+    - Generate spec.md and individual task files
+    - Present the plan for your approval
+  </Step>
+
+  <Step title="Start implementation">
+    After approval, run:
+    ```bash
+    spec-loop run
+    ```
+  </Step>
+</Steps>
+
+## Spec Directory Structure
+
+Specs live in `.agents/specs/` with this structure:
+
+```
+.agents/specs/user-auth/
+├── spec.md              # Overall feature design
+├── progress.md          # Implementation log
+└── tasks/
+    ├── 01-create-user-model.md
+    ├── 02-add-jwt-service.md
+    ├── 03-add-auth-routes.md
+    └── 04-add-tests.md
+```
+
+## Spec File Format
+
+### spec.md Structure
+
+From `.agents/templates/spec.md`:
+
+```markdown
+# Spec: [Feature Name]
+
+> Status: draft | approved | in-progress | complete
+> Created: YYYY-MM-DD
+
+## Problem
+
+What's broken or missing. Who's affected. Why now.
+
+## Goal
+
+One sentence.
+
+## Requirements
+
+### Must Have
+- Requirement 1
+- Requirement 2
+
+### Out of Scope
+- Explicitly excluded
+
+### Acceptance Criteria
+- AC1: Given X, when Y, then Z
+- AC2: Given X, when Y, then Z
+
+## Design
+
+### Data Changes
+
+| Entity | Change | Details |
+|--------|--------|------|
+
+### API / Interface Changes
+
+| Method | Path / Interface | Description |
+|--------|-----------------|-------------|
+
+### Core Logic
+
+Key business rules and algorithms.
+
+## Tasks
+
+Dependencies:
+1 → 2 → 5
+     3 → 5
+     4 → 5
+          6 [P]
+          7 [P]
+
+| # | Task | Size | Depends | Files |
+|---|------|------|---------|-------|
+| 1 | Add models | S | — | src/models/item.ts |
+| 2 | Add data access | S | 1 | src/db/item.ts |
+| 3 | Add validation | S | 1 | src/schemas/item.ts |
+| 4 | Add service logic | M | 2 | src/services/items.ts |
+| 5 | Add routes | M | 2, 3, 4 | src/routes/items.ts |
+| 6 | Tests | S | 5 | tests/items.test.ts [P] |
+| 7 | Migration | S | 1 | migrations/... [P] |
+
+> S = 1-2 files. M = 3-5 files. L = 5+ files.
+> [P] = parallelizable with other [P] tasks at same level.
+
+## Edge Cases
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+
+## Known Pitfalls
+
+Codebase-specific gotchas discovered during research.
+
+## Testing Strategy
+
+What to test and how.
+```
+
+### Task File Format
+
+Each task file (`tasks/NN-verb-noun.md`) follows this structure:
+
+```markdown
+# Task N: [Short Name]
+
+> Spec: ../spec.md
+> Status: pending | in-progress | in-review | done | blocked
+> Size: S | M | L
+> Depends on: [task numbers or "none"]
+
+## What
+
+Specific files to create or modify.
+
+## How
+
+Implementation approach referencing existing patterns.
+Code sketch for complex tasks, one sentence for simple ones.
+
+## Files
+
+- `path/to/file` — create | modify
+
+## Acceptance
+
+Observable behaviors that prove this task is done:
+- Verify command passes clean
+- POST /api/items returns 201 with created item
+- GET /api/items returns paginated list
+
+## Done
+
+- [ ] Code implemented
+- [ ] Verify command passes
+- [ ] Tests: [output or N/A with reason]
+- [ ] Committed: [sha]
+
+## Notes
+
+Filled during implementation.
+```
+
+## Design Principles
+
+### Design Backward from Goals
+
+The `/spec-loop-spec` skill uses this approach:
+
+<Steps>
+  <Step title="Observable truths">
+    Ask: "What must be TRUE when this feature works?"
+    
+    List 3-7 truths from user's perspective:
+    - Users can register with email/password
+    - JWT tokens expire after 24 hours
+    - Invalid credentials return 401
+  </Step>
+
+  <Step title="Required artifacts">
+    Ask: "What must EXIST for this to be true?"
+    
+    Map artifacts:
+    - User model with password hash field
+    - JWT service with sign/verify methods
+    - Auth routes (register, login, refresh)
+  </Step>
+
+  <Step title="Critical connections">
+    Ask: "What must be CONNECTED for this to function?"
+    
+    Define relationships:
+    - Auth routes use JWT service
+    - Middleware validates tokens
+    - Routes registered in main app
+  </Step>
+</Steps>
+
+This produces sharper tasks with verifiable acceptance criteria.
+
+### Task Ordering and Dependencies
+
+<CodeGroup>
+```markdown Linear Dependencies
+1 → 2 → 3 → 4
+
+Task 2 requires Task 1
+Task 3 requires Task 2
+Task 4 requires Task 3
+```
+
+```markdown Parallel Tasks
+1 → 2 → 5
+     3 → 5
+     4 → 5
+
+Task 2, 3, 4 all depend on 1
+Task 5 depends on 2, 3, 4
+```
+
+```markdown Mixed Dependencies
+1 → 2 → 5
+     3 → 5
+     4 → 5
+          6 [P]
+          7 [P]
+
+Tasks 6 and 7 can run in parallel
+after Task 5 completes
+```
+</CodeGroup>
+
+<Note>
+Mark parallelizable tasks with `[P]` in the task index.
+</Note>
+
+## Task Sizing
+
+Size tasks based on file count and complexity:
+
+| Size | File Count | Example |
+|------|-----------|-------|
+| **S** (Small) | 1-2 files | Add a model, create a utility function |
+| **M** (Medium) | 3-5 files | Add API routes with validation |
+| **L** (Large) | 5+ files | Complex feature with multiple layers |
+
+### How Section Detail by Size
+
+<Tabs>
+  <Tab title="Small (S)">
+    ```markdown
+    ## How
+    
+    Create User model following existing pattern in src/models/Post.ts.
+    ```
+    
+    One sentence is enough for simple tasks.
+  </Tab>
+  
+  <Tab title="Medium (M)">
+    ```markdown
+    ## How
+    
+    - Create AuthService with sign() and verify() methods
+    - Use jsonwebtoken library (already installed)
+    - Store secret in env.JWT_SECRET
+    - Follow pattern from src/services/EmailService.ts
+    ```
+    
+    Bullet points for multi-step tasks.
+  </Tab>
+  
+  <Tab title="Large (L)">
+    **Example task file:**
+    
+    ```markdown
+    ## How
+    
+    Create auth routes with middleware chain. Follow the pattern from existing routes:
+    
+    - POST /register endpoint with validateSchema middleware
+    - Create user via UserService.create()
+    - Generate JWT token via AuthService.sign()
+    - Return user object and token
+    
+    Edge cases:
+    - Handle duplicate email gracefully
+    - Rate limit registration attempts
+    - Sanitize user input before storage
+    ```
+    
+    Code sketches and edge case notes for complex tasks.
+  </Tab>
+</Tabs>
+
+## Task Lifecycle
+
+Tasks must follow this status flow:
+
+```
+pending → in-progress → in-review → done
+```
+
+<Warning>
+**Critical:** Tasks move to `in-review` after build, not `done`. Only review completion (PASS status) should mark tasks as `done`.
+</Warning>
+
+Status meanings:
+
+- **pending** — Ready to start (dependencies met)
+- **in-progress** — Currently being implemented
+- **in-review** — Code complete, awaiting review
+- **done** — Review passed, task complete
+- **blocked** — Cannot proceed (dependency or external blocker)
+
+## Context Loading
+
+The `/spec-loop-spec` skill automatically loads:
+
+<Steps>
+  <Step title="AGENTS.md">
+    Project conventions, architecture rules, naming patterns
+  </Step>
+
+  <Step title="Templates">
+    Custom spec/task templates from `.agents/templates/`
+  </Step>
+
+  <Step title="Codebase patterns">
+    Searches for similar features to follow existing patterns
+  </Step>
+
+  <Step title="Architecture docs">
+    Reads any documentation in `docs/` directory
+  </Step>
+</Steps>
+
+## Manual Spec Creation
+
+To create a spec manually:
+
+<Steps>
+  <Step title="Create directory">
+    ```bash
+    mkdir -p .agents/specs/feature-name/tasks
+    ```
+  </Step>
+
+  <Step title="Copy templates">
+    ```bash
+    cp .agents/templates/spec.md .agents/specs/feature-name/
+    cp .agents/templates/progress.md .agents/specs/feature-name/
+    ```
+  </Step>
+
+  <Step title="Fill spec.md">
+    Complete all sections with specific, actionable details.
+  </Step>
+
+  <Step title="Create task files">
+    ```bash
+    cp .agents/templates/task.md .agents/specs/feature-name/tasks/01-task-name.md
+    ```
+    
+    Fill each task file with:
+    - Specific files to create/modify
+    - Implementation approach
+    - Observable acceptance criteria
+  </Step>
+
+  <Step title="Set status">
+    Set spec status to `approved` and all tasks to `pending`.
+  </Step>
+</Steps>
+
+## Spec Quality Checklist
+
+Before running `spec-loop run`, verify:
+
+- [ ] **Specificity test:** Can a fresh developer execute each task without asking questions?
+- [ ] **Observable acceptance:** Each task has concrete, testable behaviors (not vague checkboxes)
+- [ ] **File paths:** All file paths are exact and explicit
+- [ ] **Dependencies:** Task order makes sense; dependencies are clear
+- [ ] **Edge cases:** Known pitfalls and edge cases are documented
+- [ ] **Pattern references:** Tasks reference existing code patterns to follow
+- [ ] **Size estimates:** S/M/L sizing is accurate
+- [ ] **Parallel opportunities:** Parallelizable tasks are marked with [P]
+
+## Example: User Authentication Spec
+
+<CodeGroup>
+```markdown spec.md
+# Spec: User Authentication
+
+> Status: approved
+> Created: 2026-03-01
+
+## Problem
+
+Users cannot create accounts or authenticate. App requires authentication for protected routes.
+
+## Goal
+
+Implement JWT-based user authentication with registration and login.
+
+## Requirements
+
+### Must Have
+- User registration with email/password
+- Login with JWT token generation
+- Password hashing (bcrypt)
+- Token expiration (24h)
+
+### Out of Scope
+- OAuth providers
+- Password reset flow
+- Email verification
+
+### Acceptance Criteria
+- AC1: POST /api/auth/register creates user and returns JWT
+- AC2: POST /api/auth/login validates credentials and returns JWT
+- AC3: Protected routes reject invalid/expired tokens
+
+## Tasks
+
+Dependencies:
+1 → 2 → 3 → 4
+          5 [P]
+
+| # | Task | Size | Depends | Files |
+|---|------|------|---------|-------|
+| 1 | Create User model | S | — | src/models/User.ts |
+| 2 | Add JWT service | S | 1 | src/services/AuthService.ts |
+| 3 | Add auth routes | M | 2 | src/routes/auth.ts |
+| 4 | Add auth middleware | S | 2 | src/middleware/auth.ts |
+| 5 | Add tests | M | 2, 3, 4 | tests/auth.test.ts [P] |
+
+## Known Pitfalls
+
+- JWT_SECRET must be set in .env (fail fast if missing)
+- bcrypt rounds should be 10 (performance vs security)
+- Token expiration must be validated on every request
+```
+
+```markdown tasks/01-create-user-model.md
+# Task 1: Create User Model
+
+> Spec: ../spec.md
+> Status: pending
+> Size: S
+> Depends on: none
+
+## What
+
+Create User model with email, password hash, and timestamps.
+
+## How
+
+Follow pattern from src/models/Post.ts. Use Sequelize with bcrypt for password hashing.
+
+## Files
+
+- `src/models/User.ts` — create
+
+## Acceptance
+
+- Model exports User interface and Sequelize model
+- Password is hashed with bcrypt before save (using beforeCreate hook)
+- Email is unique and validated
+- Verify command passes clean
+
+## Done
+
+- [ ] Code implemented
+- [ ] Verify command passes
+- [ ] Tests: N/A (covered in task 5)
+- [ ] Committed: [sha]
+
+## Notes
+
+(Filled during implementation)
+```
+</CodeGroup>
+
+## Tips and Best Practices
+
+<Tip>
+**Start with research:** Before writing specs, search the codebase for similar features to follow existing patterns.
+</Tip>
+
+<Tip>
+**Be specific about files:** Avoid "implement authentication" - instead list exact files to create/modify.
+</Tip>
+
+<Tip>
+**Observable acceptance criteria:** Use concrete behaviors like "POST /api/items returns 201 with created item" instead of "endpoint works".
+</Tip>
+
+<Warning>
+Don't over-engineer. Match detail level to feature complexity. A 2-file feature doesn't need 10 pages of spec.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Running Loops" icon="rotate" href="/guides/running-loops">
+    Learn how to execute specs with spec-loop run
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Configure verify commands and loop limits
+  </Card>
+</CardGroup>

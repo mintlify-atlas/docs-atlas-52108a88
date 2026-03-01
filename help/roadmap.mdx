@@ -1,0 +1,354 @@
+---
+title: Roadmap
+description: Upcoming features and long-term vision for spec-loop
+---
+
+spec-loop development roadmap with planned features and enhancements.
+
+## Current Version
+
+<Note>
+  **v0.3.1** - Initial release with core build-review-fix loop, circuit breaker, and Charm.sh-inspired terminal UI.
+</Note>
+
+### Recent Improvements
+
+<CardGroup cols={2}>
+  <Card title="Rust Runtime" icon="rust">
+    Replaced shell runtime with Rust core for better performance and reliability
+  </Card>
+  <Card title="Live Progress" icon="spinner">
+    Elapsed timer with spinner during Claude execution phases
+  </Card>
+  <Card title="Improved UX" icon="display">
+    Enhanced spec summary panel with task status breakdown
+  </Card>
+  <Card title="Session Logs" icon="file-lines">
+    Structured logging with JSON analytics and Markdown summaries
+  </Card>
+</CardGroup>
+
+## Next Up
+
+Features planned for upcoming releases.
+
+### Parallel Tasks
+
+<Accordion title="Concurrent task execution">
+  **Status:** Planned
+
+  Run independent tasks concurrently to speed up large specs.
+
+  **Features:**
+  - Auto-detect parallel-eligible tasks (no dependencies or all met)
+  - Spawn N Claude sessions concurrently
+  - Shared cost tracking across sessions
+  - Interleaved stream output with task labels
+  - Independent review per task
+  - Parallel git branch management
+
+  **Example:**
+  ```
+  Dependencies:
+  1 → 2 → 5
+      3 → 5
+      4 → 5
+           6 [P]  ← Can run in parallel
+           7 [P]  ← Can run in parallel
+  ```
+
+  Tasks 6 and 7 start simultaneously after task 5 completes.
+
+  **Benefits:**
+  - 2-3x faster for specs with many independent tasks
+  - Better resource utilization
+  - Same total cost, less wall-clock time
+</Accordion>
+
+### Interactive Mode
+
+<Accordion title="User prompts after review failures">
+  **Status:** Planned
+
+  After review fails, prompt user for action instead of auto-fixing.
+
+  **Features:**
+  - Read from `/dev/tty` for user input
+  - Show compact summary of findings
+  - Options: `[a]uto-fix`, `[s]kip`, `[q]uit`, `[m]anual`
+  - Manual mode pauses loop for user intervention
+
+  **Example:**
+  ```
+  ✗ Review FAIL: 2 must-fix, 1 should-fix
+
+  Must fix:
+  - Missing error handling in auth.ts:42
+  - Unused import in routes.ts:5
+
+  Should fix:
+  - Add JSDoc comment to validateToken()
+
+  Action? [a]uto-fix [s]kip [m]anual [q]uit:
+  ```
+
+  **Benefits:**
+  - More control over fixes
+  - Catch issues the auto-fixer might miss
+  - Learn from review feedback
+</Accordion>
+
+### Git Diff Preview
+
+<Accordion title="Show changes before review">
+  **Status:** Planned
+
+  Display `git diff --stat` after build phase completes.
+
+  **Features:**
+  - Run `git diff --stat $before_sha..HEAD`
+  - Show as indented step lines
+  - Only display if changes exist
+
+  **Example:**
+  ```
+  ● build
+    ✓ result   45s ◆ $0.12
+
+  Changes:
+    → src/api/routes/auth.ts    | 42 +++++++++++++++
+    → src/services/jwt.ts       | 28 ++++++++++
+    → src/types/user.ts         | 15 ++++++
+    → tests/auth.test.ts        | 67 ++++++++++++++++++++++++
+
+  ● review
+  ```
+
+  **Benefits:**
+  - Quick overview of changes
+  - Spot unexpected modifications
+  - Verify task scope
+</Accordion>
+
+### Cost Budget
+
+<Accordion title="Spending limits per run">
+  **Status:** Planned
+
+  `--budget` flag to stop loop when cost limit is reached.
+
+  **Features:**
+  - Track total cost against budget threshold
+  - Check after each Claude invocation
+  - Exit with clear message showing cost breakdown
+  - Optional `BUDGET=` in `.speclooprc`
+
+  **Example:**
+  ```bash
+  # Limit run to $5
+  spec-loop run --budget 5.00
+  ```
+
+  Output when exceeded:
+  ```
+  ✗ Budget exceeded
+
+  Spent: $5.12 / $5.00 budget
+  Tasks completed: 4/7
+  Remaining: 3 tasks
+
+  Resume with: spec-loop run --resume
+  ```
+
+  **Benefits:**
+  - Cost control for large specs
+  - Predictable spending
+  - Safe experimentation
+</Accordion>
+
+## Future Enhancements
+
+Longer-term features under consideration.
+
+### Webhook Notifications
+
+<Accordion title="Slack/Discord integration">
+  **Status:** Planned
+
+  POST to URL when loop completes for team notifications.
+
+  **Features:**
+  - `--webhook <url>` flag or `WEBHOOK_URL` in config
+  - JSON payload with spec, tasks, cost, duration
+  - Fire on any exit reason (complete, blocked, circuit open, budget)
+  - Non-blocking background request
+
+  **Payload example:**
+  ```json
+  {
+    "spec": "user-auth",
+    "tasks_completed": 6,
+    "tasks_total": 7,
+    "cost": 2.47,
+    "duration_seconds": 4316,
+    "exit_reason": "all_tasks_complete",
+    "branch": "feat/user-auth",
+    "timestamp": "2026-03-01T15:42:18Z"
+  }
+  ```
+
+  **Benefits:**
+  - Team awareness of completed features
+  - Integrate with CI/CD workflows
+  - Track spec-loop usage across team
+</Accordion>
+
+### Session Replay
+
+<Accordion title="Playback session logs">
+  **Status:** Planned
+
+  `spec-loop replay <session>` to replay terminal output with timing.
+
+  **Features:**
+  - Read session.json for timing data
+  - Replay step-by-step with delays
+  - `--speed 2x` for faster playback
+  - `--step` for manual step-through
+
+  **Example:**
+  ```bash
+  spec-loop replay .spec-loop/sessions/20260301_143022_user-auth
+  ```
+
+  **Use cases:**
+  - Demo spec-loop to team
+  - Debug issues in slow motion
+  - Generate training videos
+  - Review what happened in long runs
+</Accordion>
+
+### Multi-Model Support
+
+<Accordion title="Use different models per phase">
+  **Status:** Under consideration
+
+  Configure different Claude models for build vs review.
+
+  **Rationale:**
+  - Build benefits from Opus (complex reasoning)
+  - Review can use Sonnet (faster, cheaper)
+  - Fix might use Opus for hard issues, Sonnet for simple fixes
+
+  **Config example:**
+  ```bash
+  # .speclooprc
+  BUILD_MODEL="claude-opus-4-6"
+  REVIEW_MODEL="claude-sonnet-4-6"
+  FIX_MODEL="claude-sonnet-4-6"
+  ```
+
+  **Benefits:**
+  - Optimize cost vs quality per phase
+  - 30-50% cost reduction with minimal quality loss
+</Accordion>
+
+### Spec Templates
+
+<Accordion title="Pre-built spec patterns">
+  **Status:** Under consideration
+
+  Common feature templates to accelerate spec creation.
+
+  **Templates:**
+  - REST API with CRUD operations
+  - Authentication system (OAuth, JWT)
+  - Database migration
+  - UI component library
+  - Background job processor
+  - WebSocket real-time feature
+
+  **Usage:**
+  ```bash
+  spec-loop init-spec --template rest-api --name user-api
+  ```
+
+  **Benefits:**
+  - Faster spec creation
+  - Best practices built-in
+  - Consistent patterns
+</Accordion>
+
+### AI-Powered Spec Generation
+
+<Accordion title="Generate specs from prose descriptions">
+  **Status:** Under consideration
+
+  Let Claude generate the full spec from a natural language description.
+
+  **Features:**
+  - Provide high-level feature description
+  - Claude researches codebase
+  - Generates spec.md and all task files
+  - User reviews and approves before run
+
+  **Example:**
+  ```bash
+  spec-loop generate-spec "Add user authentication with JWT. \
+    Support email/password login, registration, and token refresh. \
+    Include password reset flow."
+  ```
+
+  **Benefits:**
+  - Fastest path from idea to implementation
+  - Leverage Claude's codebase understanding
+  - Still maintain human-in-the-loop approval
+
+  <Warning>
+    Requires careful validation. Auto-generated specs may miss edge cases.
+  </Warning>
+</Accordion>
+
+## Completed Features
+
+Features implemented in recent releases.
+
+<Accordion title="v0.3.1 - Initial release">
+  - [x] Rust core runtime (replaces shell)
+  - [x] GitHub archive-based installer
+  - [x] Live elapsed timer during phases
+  - [x] Improved spec summary panel
+  - [x] Safe panel rendering (auto line truncation)
+  - [x] Terminal bell on completion
+  - [x] Simplified session logs (JSON + Markdown)
+  - [x] Spec-driven build→review→fix loop
+  - [x] Claude Code stream-json integration
+  - [x] Circuit breaker for stagnation detection
+  - [x] Session resume support
+  - [x] Namespaced skills (spec-loop-spec, spec-loop-status)
+  - [x] Per-project configuration (.speclooprc)
+  - [x] Charm.sh-inspired terminal UX
+</Accordion>
+
+## Contributing to Roadmap
+
+Help shape spec-loop's future:
+
+<CardGroup cols={2}>
+  <Card title="Feature Requests" icon="lightbulb" href="https://github.com/surajpatildev/spec-loop/issues/new">
+    Suggest new features on GitHub
+  </Card>
+  <Card title="Discussions" icon="comments" href="https://github.com/surajpatildev/spec-loop/discussions">
+    Discuss ideas with the community
+  </Card>
+  <Card title="Pull Requests" icon="code-pull-request" href="/help/contributing">
+    Implement features yourself
+  </Card>
+  <Card title="Vote on Features" icon="arrow-up" href="https://github.com/surajpatildev/spec-loop/issues">
+    Upvote issues you want prioritized
+  </Card>
+</CardGroup>
+
+<Note>
+  Roadmap priorities may shift based on community feedback and real-world usage patterns.
+</Note>

@@ -1,0 +1,98 @@
+---
+title: spec-loop version
+description: Display the installed spec-loop version
+---
+
+## Usage
+
+```bash
+spec-loop version
+```
+
+Displays the current version of the spec-loop CLI.
+
+## Output
+
+```
+spec-loop v0.3.1
+```
+
+The version format follows semantic versioning: `MAJOR.MINOR.PATCH`
+
+## Version Information
+
+The version is embedded at compile time from `Cargo.toml` and represents:
+
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backwards compatible)
+- **PATCH**: Bug fixes
+
+## Examples
+
+### Check installed version
+
+```bash
+spec-loop version
+```
+
+### Verify installation
+
+```bash
+spec-loop version
+if [ $? -eq 0 ]; then
+  echo "spec-loop is installed"
+fi
+```
+
+### Compare versions in scripts
+
+```bash
+VERSION=$(spec-loop version | cut -d' ' -f2 | tr -d 'v')
+REQUIRED="0.3.0"
+
+if [ "$(printf '%s\n' "$REQUIRED" "$VERSION" | sort -V | head -n1)" = "$REQUIRED" ]; then
+  echo "Version $VERSION meets requirement >= $REQUIRED"
+else
+  echo "Version $VERSION is below required $REQUIRED"
+fi
+```
+
+## Exit Codes
+
+| Code | Description |
+|------|-------------|
+| `0` | Success |
+
+## Related
+
+- **Installation guide**: Check [README.md](https://github.com/surajpatildev/spec-loop#install) for latest installation instructions
+- **Changelog**: See [GitHub releases](https://github.com/surajpatildev/spec-loop/releases) for version history
+
+## Updating
+
+### Reinstall latest version
+
+```bash
+curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+hash -r
+spec-loop version
+```
+
+### Build from source
+
+```bash
+git clone https://github.com/surajpatildev/spec-loop.git
+cd spec-loop
+cargo build --release
+./target/release/spec-loop version
+```
+
+## Version Compatibility
+
+spec-loop maintains backwards compatibility for:
+
+- `.speclooprc` configuration format
+- Spec/task file structure (`.agents/specs/`)
+- Session log format (`.spec-loop/sessions/`)
+
+**Breaking changes** are indicated by MAJOR version bumps and documented in release notes.

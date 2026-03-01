@@ -1,0 +1,359 @@
+---
+title: Development Workflow
+description: Complete workflow from spec creation to feature completion
+---
+
+This guide walks through the full development workflow using spec-loop, from creating a feature spec to completing all tasks with the autonomous build-review-fix loop.
+
+## Complete Workflow
+
+<Steps>
+  <Step title="Initialize Project">
+    Run `spec-loop init` in your project root:
+
+    ```bash
+    cd your-project
+    spec-loop init
+    ```
+
+    This creates:
+    - `.speclooprc` — Project configuration
+    - `.agents/specs/` — Spec storage directory
+    - `.spec-loop/sessions/` — Session logs (gitignored)
+    - `AGENTS.md` — Project rules and conventions
+    - `.agents/templates/` — Spec and task templates
+
+    <Info>
+    The init wizard auto-detects your project type and suggests verify/test commands. You can accept defaults or customize.
+    </Info>
+  </Step>
+
+  <Step title="Configure AGENTS.md">
+    Edit `AGENTS.md` with your project's specific rules:
+
+    ```markdown
+    # Project Rules
+
+    ## Architecture
+    - Use MVC pattern with controllers in `src/controllers/`
+    - Models in `src/models/` using TypeORM
+    - Services in `src/services/` for business logic
+
+    ## Naming Conventions
+    - Files: kebab-case (`user-controller.ts`)
+    - Classes: PascalCase (`UserController`)
+    - Functions: camelCase (`getUserById`)
+
+    ## Review Checklist
+    - [ ] Error handling with try/catch
+    - [ ] Input validation with Zod schemas
+    - [ ] Tests for happy path and edge cases
+    - [ ] No console.log in production code
+    ```
+
+    This file is read by build and review phases to enforce project standards.
+  </Step>
+
+  <Step title="Create Feature Spec">
+    Use the `/spec-loop-spec` skill in Claude Code:
+
+    ```bash
+    /spec-loop-spec Add user authentication with JWT tokens
+    ```
+
+    The skill will:
+    1. Research your codebase for patterns
+    2. Design backward from observable goals
+    3. Generate `spec.md` with requirements and design
+    4. Create individual task files with dependencies
+    5. Show you a summary for approval
+
+    **Example output:**
+    ```
+    ✓ Created spec: .agents/specs/user-auth/
+    ✓ Tasks: 7 (2 S, 4 M, 1 L)
+    ✓ Branch: feat/user-auth
+
+    Dependencies:
+    1 → 2 → 5 → 7
+         3 → 5
+         4 → 5
+              6 [P]
+
+    Ready to run: spec-loop run
+    ```
+  </Step>
+
+  <Step title="Run the Loop">
+    Start the autonomous development loop:
+
+    ```bash
+    spec-loop run
+    ```
+
+    spec-loop will:
+    - Auto-detect the active spec (or prompt if multiple exist)
+    - Find the first pending task
+    - Execute build → review → fix cycles until all tasks complete
+    - Create commits after each successful task
+    - Log all activity to `.spec-loop/sessions/`
+
+    **Live output:**
+    ```bash
+    spec-loop v0.3.1
+
+    ╭─ Spec ──────────────────────────────────────────╮
+    │  user-auth                                       │
+    │  ████░░░░░░░░░░░░ 2/7 done ◆ 5 remaining         │
+    │  3 pending ◆ 1 in-progress                        │
+    │  1 in-review ◆ 0 blocked                          │
+    │  feat/user-auth                                  │
+    ╰──────────────────────────────────────────────────╯
+
+    ── Iteration 3 of 25 ─────────────────────────────
+
+    ● build
+        → session  model=claude-opus-4-6  id=9af31c8d
+        ⠹ #4 Bash npm run lint && npm run typecheck 00:12
+    ```
+  </Step>
+
+  <Step title="Monitor Progress">
+    While the loop runs, you can check status in another terminal:
+
+    ```bash
+    spec-loop status
+    ```
+
+    Or use the `/spec-loop-status` skill in Claude Code for detailed progress.
+
+    <Note>
+    The loop continues until all tasks are `done`, a task is `blocked`, or a safety limit is reached.
+    </Note>
+  </Step>
+
+  <Step title="Handle Blocked Tasks">
+    If a task becomes blocked, spec-loop stops and reports the issue:
+
+    ```bash
+    ✗ Task 4 blocked: External API credentials missing
+
+    Exit: BLOCKED
+    Session: .spec-loop/sessions/20260301_143022_user-auth/
+    ```
+
+    **Resolution workflow:**
+    1. Check session logs for details: `.spec-loop/sessions/<session-id>/run.md`
+    2. Resolve the blocking issue manually
+    3. Update task status: `blocked → pending`
+    4. Resume: `spec-loop run --resume`
+  </Step>
+
+  <Step title="Review and Merge">
+    Once all tasks are complete:
+
+    1. Review the feature branch commits
+    2. Check session logs for cost and timing metrics
+    3. Run final verification:
+       ```bash
+       npm run lint && npm run typecheck
+       npm test
+       ```
+    4. Create pull request and merge
+
+    Session logs provide detailed documentation of what was implemented:
+    ```bash
+    .spec-loop/sessions/20260301_143022_user-auth/
+    ├── session.json   # Machine-readable: cost, duration, iterations
+    ├── session.md     # Human-readable: iteration summaries
+    └── run.md         # Full log: prompts, outputs, Claude session IDs
+    ```
+  </Step>
+</Steps>
+
+## Common Scenarios
+
+### Working on Multiple Features
+
+spec-loop supports multiple active specs:
+
+```bash
+# Explicitly specify which spec to run
+spec-loop run --spec .agents/specs/user-auth
+
+# Or let spec-loop detect from task status
+spec-loop run  # Auto-detects if only one has pending tasks
+```
+
+If multiple specs have pending tasks, spec-loop prompts you to choose.
+
+### Limiting Work Scope
+
+**Run a single iteration:**
+```bash
+spec-loop run --once
+```
+
+Uses the same session directory, so next run continues where you left off.
+
+**Complete a specific number of tasks:**
+```bash
+spec-loop run --max-tasks 3
+```
+
+Stops after 3 tasks are marked `done`, exit reason is `TASK_LIMIT`.
+
+**Increase iteration limit:**
+```bash
+spec-loop run --max-loops 50
+```
+
+Default is 25 iterations. Useful for large specs.
+
+### Resuming After Interruption
+
+If spec-loop exits due to `--once`, `--max-tasks`, or `MAX_ITERATIONS`, resume with:
+
+```bash
+spec-loop run --resume
+```
+
+This continues the same session, preserving all logs and progress.
+
+<Warning>
+The `--resume` flag is **not** needed after BLOCKED exits. spec-loop automatically detects continuation points for the same spec.
+</Warning>
+
+### Build-Only Mode
+
+Skip review cycles for rapid prototyping:
+
+```bash
+spec-loop run --skip-review
+```
+
+Each task goes directly: `pending → in-progress → done` without review verification.
+
+<Warning>
+Not recommended for production features. Review phases catch logic errors, missing error handling, and test failures.
+</Warning>
+
+### Dry Run
+
+Preview what would run without calling Claude Code:
+
+```bash
+spec-loop run --dry-run
+```
+
+Shows detected spec, tasks, commands, and configuration without execution.
+
+## Session Continuation Logic
+
+spec-loop automatically detects when to continue an existing session:
+
+```rust
+// src/session.rs:458-465
+pub fn session_continuation_for_spec(session_dir: &Path, spec_dir: &Path) -> Option<PathBuf> {
+    let latest = session_latest_for_spec(session_dir, spec_dir)?;
+    let data = read_session_json(&session_json_path(&latest)).ok()?;
+    match data.exit_reason.as_deref() {
+        Some("ONCE") | Some("TASK_LIMIT") => Some(latest),
+        _ => None,
+    }
+}
+```
+
+If the last session exited with `ONCE` or `TASK_LIMIT`, the next run for that spec continues the same session directory.
+
+## Configuration Overrides
+
+Environment variables override `.speclooprc` settings:
+
+| Variable | Override |
+|----------|----------|
+| `CLAUDE_BIN` | Claude Code binary path (default: `claude`) |
+| `CLAUDE_MODEL` | Model to use (overrides `.speclooprc` setting) |
+| `CLAUDE_EXTRA_ARGS` | Additional args passed to claude command |
+| `SPECLOOP_MAX_LOOPS` | Max iterations (overrides `--max-loops`) |
+| `SPECLOOP_MAX_TASKS_PER_RUN` | Max tasks (overrides `--max-tasks`) |
+| `SPECLOOP_SPECS_DIR` | Specs directory (default: `.agents/specs`) |
+
+**Example:**
+```bash
+export CLAUDE_MODEL="claude-opus-4-6"
+export SPECLOOP_MAX_LOOPS=50
+spec-loop run
+```
+
+## Git Integration
+
+spec-loop expects git for best results:
+
+**Feature branches:**
+The `/spec-loop-spec` skill creates feature branches: `feat/<feature-name>` or `fix/<feature-name>`.
+
+**Commit discipline:**
+- Build/fix phases commit code changes after each task
+- Spec files and `progress.md` are never staged
+- Uses `git add <specific-files>` (explicit staging only)
+- Commit messages reference task names
+
+**Review diff ranges:**
+Review phase uses git to scope changes:
+```rust
+// src/prompts.rs:37-41
+let diff_instruction = if let Some(sha) = before_sha.filter(|s| !s.is_empty()) {
+    format!("Review ONLY this range: `git diff {}..HEAD`.", sha)
+} else {
+    "Review latest changes using `git diff main...HEAD` or `git diff --staged`.".to_string()
+};
+```
+
+<Info>
+spec-loop works without git, but review quality is lower (can't isolate task-specific changes).
+</Info>
+
+## Telemetry and Cost Tracking
+
+Each session tracks metrics in `session.json`:
+
+```json
+{
+  "session_id": "20260301_143022_user-auth",
+  "version": "0.3.1",
+  "spec": ".agents/specs/user-auth",
+  "started_at": "2026-03-01T14:30:22Z",
+  "ended_at": "2026-03-01T15:45:18Z",
+  "duration_seconds": 4496,
+  "total_cost_usd": 1.23,
+  "total_iterations": 7,
+  "exit_reason": "ALL_TASKS_COMPLETE",
+  "claude_sessions": ["9af31c8d", "b2e45a9f", ...],
+  "iterations": [
+    {
+      "index": 1,
+      "task": "Add user model",
+      "outcome": "PASS",
+      "duration_seconds": 180,
+      "cost_usd": 0.08,
+      "must_fix_count": 0,
+      "should_fix_count": 0,
+      "commit": "a3f91c2"
+    }
+  ]
+}
+```
+
+Use this for cost analysis, performance monitoring, and debugging.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Circuit Breaker" icon="shield-halved" href="/concepts/circuit-breaker">
+    Learn about stagnation protection
+  </Card>
+  <Card title="Session Logs" icon="file-lines" href="/concepts/session-logs">
+    Understand session logging
+  </Card>
+</CardGroup>

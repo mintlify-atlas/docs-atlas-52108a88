@@ -1,80 +1,566 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get from zero to your first automated development loop in 5 minutes
 ---
 
-## Get started in three steps
-
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide walks you through setting up spec-loop in a project and running your first automated build-review-fix cycle.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Before starting, make sure you've [installed spec-loop](/installation) and have Claude Code CLI available.
 </Note>
+
+## Step 1: Initialize Your Project
+
+Navigate to your project directory and initialize spec-loop:
+
+```bash
+cd your-project
+spec-loop init
+```
+
+<Tip>
+  spec-loop auto-detects your project type (TypeScript, Python, Rust, etc.) and suggests appropriate verify and test commands.
+</Tip>
+
+### What Gets Created
+
+The init command sets up:
+
+```
+your-project/
+├── .speclooprc              # Configuration (verify/test commands, limits)
+├── .agents/
+│   ├── specs/               # Feature specs (created via /spec-loop-spec)
+│   ├── templates/           # Customizable spec and task templates
+│   ├── reference/           # Optional: code patterns and examples
+│   └── decisions.md         # Design decisions log
+├── .spec-loop/              # Runtime state (auto-added to .gitignore)
+│   └── sessions/            # Session logs
+└── AGENTS.md                # Your project's rules and conventions
+```
+
+### Configure AGENTS.md
+
+This is the most important step! Edit `AGENTS.md` to describe your project:
+
+```markdown
+# AGENTS.md
+
+## Project Overview
+
+This is a TypeScript/Express REST API for managing user subscriptions.
+Uses PostgreSQL via Prisma ORM. Authentication via JWT.
+
+## Conventions
+
+### File Structure
+- Routes: `src/api/routes/<feature>.ts`
+- Controllers: `src/api/controllers/<feature>.controller.ts`
+- Models: Prisma schema in `prisma/schema.prisma`
+- Tests: `__tests__/<feature>.test.ts`
+
+### Naming
+- Use camelCase for functions and variables
+- Use PascalCase for types and interfaces
+- Prefix interfaces with `I` (e.g., `IUserResponse`)
+
+### Patterns
+- All routes must have error handling middleware
+- Use async/await, not callbacks
+- Always validate request bodies with Zod schemas
+
+## Review Checklist
+
+- Type safety: No `any` types without explicit justification
+- Error handling: All async operations wrapped in try/catch
+- Tests: At least happy path test for each endpoint
+- Security: Auth middleware on protected routes
+```
+
+<Warning>
+  The quality of your AGENTS.md directly impacts the quality of generated code. Be specific!
+</Warning>
+
+## Step 2: Create a Feature Spec
+
+You have two options:
+
+### Option A: Using Claude Code (Recommended)
+
+If you installed the spec-loop skills:
+
+```bash
+# In Claude Code
+/spec-loop-spec Add user authentication with JWT tokens and password hashing
+```
+
+Claude will create a spec with tasks in `.agents/specs/user-auth/`.
+
+### Option B: Manual Creation
+
+Create a spec directory and tasks manually:
+
+```bash
+mkdir -p .agents/specs/user-auth
+```
+
+Create `.agents/specs/user-auth/spec.md`:
+
+```markdown
+# User Authentication
+
+## Goal
+Implement JWT-based authentication with secure password hashing.
+
+## Success Criteria
+- POST /auth/register endpoint for new users
+- POST /auth/login endpoint returns JWT token
+- Passwords hashed with bcrypt
+- Auth middleware validates JWT on protected routes
+- Tests covering happy and error paths
+
+## Tasks
+1. Setup JWT config and environment variables
+2. Create user model with password field
+3. Implement password hashing utilities
+4. Create POST /auth/register endpoint
+5. Create POST /auth/login endpoint
+6. Create auth middleware
+7. Add tests for auth endpoints
+```
+
+Then create task files (`.agents/specs/user-auth/task-01.md`, etc.) for each task.
+
+<Tip>
+  Use the templates in `.agents/templates/` as starting points.
+</Tip>
+
+## Step 3: Review Configuration
+
+Check your `.speclooprc` file:
+
+```bash
+cat .speclooprc
+```
+
+Example for a TypeScript project:
+
+```bash
+# Project
+PROJECT_TYPE="typescript"
+VERIFY_COMMAND="npm run lint && npm run typecheck"
+TEST_COMMAND="npm test"
+
+# Claude Code
+# CLAUDE_MODEL=""  # Optional: override model
+
+# Loop limits
+# MAX_LOOPS=25
+# MAX_REVIEW_FIX_LOOPS=3
+```
+
+<Note>
+  The verify command runs after each build to catch errors early. The test command is available to Claude but not automatically enforced.
+</Note>
+
+Adjust if needed, then save.
+
+## Step 4: Run Your First Loop
+
+Launch spec-loop:
+
+```bash
+spec-loop run
+```
+
+<Tip>
+  For your first run, consider using `--max-tasks 1` to complete just one task and verify everything works:
+  
+  ```bash
+  spec-loop run --max-tasks 1
+  ```
+</Tip>
+
+### What Happens Next
+
+spec-loop will:
+
+1. **Detect your spec** - Auto-finds active specs in `.agents/specs/`
+2. **Start the loop** - For each task:
+   - **Build**: Claude Code implements the task
+   - **Review**: Checks code against AGENTS.md criteria
+   - **Fix** (if needed): Claude addresses issues (up to 3 attempts)
+   - **Done**: Marks task complete, moves to next
+
+3. **Display progress**:
+
+```bash
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ██░░░░░░░░░░░░░░ 1/7 done ◆ 6 remaining         │
+│  6 pending ◆ 0 in-progress                        │
+│  0 in-review ◆ 0 blocked                          │
+│  main                                            │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+── Iteration 1 ◆ Setup JWT config ────────────────
+
+● build
+    → session  model=claude-opus-4-6  id=abc123
+    → Read     AGENTS.md
+    → Read     .env.example
+    → Write    .env
+    → Edit     src/config/index.ts
+    ✓ result   38s ◆ $0.08 ◆ 6 tools
+
+● review
+    ✓ PASS     0 must-fix ◆ 0 should-fix
+
+✓ Task 1 complete → 6 remaining
+```
+
+4. **Create session logs** - Detailed logs go to `.spec-loop/sessions/<timestamp>_<spec-name>/`
+
+### Loop Continues Until:
+
+- All tasks are done ✅
+- A task is blocked ⛔
+- Max iterations reached (default: 25)
+- Circuit breaker trips (3 iterations with no progress)
+- You interrupt with Ctrl+C
+
+## Step 5: Monitor Progress
+
+While the loop runs (or after), check status:
+
+```bash
+spec-loop status
+```
+
+Output:
+
+```bash
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  3 pending ◆ 1 in-progress                        │
+│  0 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│  → Next: Create POST /auth/register endpoint    │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+  Recent commits
+    abc1234 Add JWT config and environment variables
+    def5678 Create user model with password field
+    ghi9012 Implement password hashing utilities
+```
+
+Or use the Claude Code skill:
+
+```bash
+/spec-loop-status
+```
+
+## Step 6: Review the Results
+
+Once the loop completes:
+
+### Check the Code
+
+Review generated files:
+
+```bash
+git status
+git diff
+```
+
+### Check Session Logs
+
+Inspect what happened:
+
+```bash
+ls .spec-loop/sessions/
+# 20260301_143022_user-auth/
+
+cat .spec-loop/sessions/20260301_143022_user-auth/session.md
+```
+
+The logs include:
+- `session.json` - Cost, duration, iterations, exit reason
+- `session.md` - Iteration summaries
+- `run.md` - Full build/review/fix outputs with Claude session IDs
+
+### Review and Commit
+
+If satisfied with the results:
+
+```bash
+git add .
+git commit -m "feat: implement user authentication"
+```
+
+If changes needed, you can:
+- Edit AGENTS.md with better guidance
+- Update task files to be more specific
+- Mark tasks back to pending and re-run
+
+## Common Options
+
+### Run Specific Spec
+
+If you have multiple specs:
+
+```bash
+spec-loop run --spec .agents/specs/user-auth
+```
+
+### Limit Tasks Per Run
+
+Process just a few tasks at a time:
+
+```bash
+spec-loop run --max-tasks 3
+```
+
+Next run continues where you left off.
+
+### Skip Review (Fast Iteration)
+
+Build tasks without automated review:
+
+```bash
+spec-loop run --skip-review
+```
+
+Tasks marked as "in-review" for manual inspection.
+
+### Dry Run (Preview Mode)
+
+See what would happen without calling Claude:
+
+```bash
+spec-loop run --dry-run
+```
+
+### Single Iteration
+
+Run one build-review cycle then stop:
+
+```bash
+spec-loop run --once
+```
+
+### Resume Interrupted Session
+
+If you stopped mid-task:
+
+```bash
+spec-loop run --resume
+```
+
+Picks up exactly where it left off.
+
+### Verbose Output
+
+See full streaming output from Claude:
+
+```bash
+spec-loop run --verbose
+```
+
+## Troubleshooting
+
+### Tasks Get Blocked
+
+**Symptom**: spec-loop reports a task is BLOCKED.
+
+**Solutions**:
+1. Check the task description - might be unclear or impossible
+2. Check AGENTS.md - might have conflicting rules
+3. Manually implement the blocker, mark task as done, continue
+
+### Circuit Breaker Trips
+
+**Symptom**: "Circuit breaker open" after 3 iterations with no progress.
+
+**Solutions**:
+1. Check recent logs in `.spec-loop/sessions/`
+2. Task might be too vague - make it more specific
+3. Clear blockers manually, then resume with `--resume`
+
+### Review Keeps Failing
+
+**Symptom**: Fix attempts hit max retries (3), task left in-review.
+
+**Solutions**:
+1. Review the findings in session logs
+2. Update AGENTS.md if review criteria are too strict
+3. Manually fix the issues, mark task done
+4. Increase `MAX_REVIEW_FIX_LOOPS` in `.speclooprc` if needed
+
+### "No .speclooprc found"
+
+**Solution**: Run `spec-loop init` first.
+
+### "Specs directory not found"
+
+**Solution**: Either:
+- Run `spec-loop init` to create `.agents/specs/`
+- Or create it manually: `mkdir -p .agents/specs`
+
+### "Required command not found: claude"
+
+**Solution**: Install Claude Code CLI and ensure it's in your PATH:
+
+```bash
+claude --version
+```
+
+If not found, check [Claude Code installation](https://claude.ai/claude-code).
+
+## Tips for Success
+
+<Tip>
+  **Start Small**: For your first spec, use 3-5 simple tasks. Get comfortable with the loop before tackling larger features.
+</Tip>
+
+<Tip>
+  **Invest in AGENTS.md**: Spend 10-15 minutes writing clear conventions. This pays off immediately in code quality.
+</Tip>
+
+<Tip>
+  **Use Reference Files**: Put example code in `.agents/reference/`. Claude reads these during build.
+</Tip>
+
+<Tip>
+  **Review Early Iterations**: Check the first few tasks to ensure Claude understands your style. Adjust AGENTS.md if needed.
+</Tip>
+
+<Tip>
+  **Leverage Task Budgets**: Use `--max-tasks` for incremental progress. Easier to review 2-3 tasks than 10 at once.
+</Tip>
+
+<Warning>
+  **Don't Over-Constrain**: Balance guidance with flexibility. Over-specifying every detail can make tasks harder to complete.
+</Warning>
+
+## Understanding the Output
+
+### Progress Display
+
+```bash
+████████░░░░░░░░ 3/7 done ◆ 4 remaining
+```
+
+Shows:
+- Visual progress bar
+- Tasks completed / total
+- Tasks remaining (pending + in-progress + in-review)
+
+### Task Status
+
+- **Pending**: Not started yet
+- **In-Progress**: Currently being built
+- **In-Review**: Built, under review or waiting for fixes
+- **Blocked**: Cannot proceed (manual intervention needed)
+- **Done**: Completed and passed review
+
+### Iteration Output
+
+```bash
+● build
+    → Read     AGENTS.md
+    → Write    src/auth.ts
+    ✓ result   45s ◆ $0.12 ◆ 8 tools
+```
+
+Shows:
+- Tools used by Claude (Read, Write, Bash, etc.)
+- Duration and cost
+- Tool count
+
+### Review Results
+
+```bash
+✓ PASS     0 must-fix ◆ 2 should-fix (non-blocking)
+```
+
+or
+
+```bash
+✗ FAIL     3 must-fix ◆ 1 should-fix
+```
+
+- **must-fix**: Blocking issues (triggers fix phase)
+- **should-fix**: Non-blocking suggestions (logged but not blocking)
+
+## Next Steps
+
+Now that you've run your first loop:
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Learn about all configuration options in .speclooprc
+  </Card>
+  
+  <Card title="Writing Specs" icon="file-pen" href="/writing-specs">
+    Best practices for creating effective feature specs
+  </Card>
+  
+  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
+    Complete command-line reference for all options
+  </Card>
+  
+  <Card title="Session Logs" icon="file-lines" href="/session-logs">
+    Understanding and using session logs for debugging
+  </Card>
+</CardGroup>
+
+## Example: Full Workflow
+
+Here's a complete example workflow:
+
+```bash
+# 1. Initialize project
+cd my-api
+spec-loop init
+
+# 2. Edit AGENTS.md with your conventions
+$EDITOR AGENTS.md
+
+# 3. Create a spec (using Claude Code)
+claude
+/spec-loop-spec Add user profile endpoints (GET, PUT, DELETE)
+
+# 4. Review the generated spec
+ls .agents/specs/user-profile/
+cat .agents/specs/user-profile/spec.md
+
+# 5. Run the loop (start with 2 tasks)
+spec-loop run --max-tasks 2
+
+# 6. Check results
+git diff
+spec-loop status
+
+# 7. If good, continue with remaining tasks
+spec-loop run
+
+# 8. Review final results
+cat .spec-loop/sessions/*/session.md
+git status
+
+# 9. Commit
+git add .
+git commit -m "feat: add user profile endpoints"
+```
+
+Congratulations! You've completed your first automated development loop with spec-loop. 🎉

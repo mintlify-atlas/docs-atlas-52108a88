@@ -1,0 +1,296 @@
+---
+title: Basic Workflow
+description: Step-by-step guide to using spec-loop for your first feature
+---
+
+This guide walks you through a complete spec-loop workflow, from initialization to completion.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Claude Code CLI" icon="terminal">
+    Install from [claude.ai/claude-code](https://claude.ai/claude-code)
+  </Card>
+  <Card title="Git Repository" icon="git-alt">
+    Your project must be a git repository
+  </Card>
+</CardGroup>
+
+## Workflow Overview
+
+<Steps>
+  <Step title="Install spec-loop">
+    Install the CLI using the installer script:
+
+    ```bash
+    curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+    hash -r
+    spec-loop version
+    ```
+
+    <Note>
+      First install may take 30-90 seconds depending on your machine and cargo cache.
+    </Note>
+
+    If `spec-loop` is not found, add it to your PATH:
+
+    ```bash
+    export PATH="$HOME/.local/bin:$PATH"
+    hash -r
+    ```
+  </Step>
+
+  <Step title="Initialize in your project">
+    Navigate to your project directory and run:
+
+    ```bash
+    cd your-project
+    spec-loop init
+    ```
+
+    This creates:
+    - `.speclooprc` - Project configuration with auto-detected settings
+    - `AGENTS.md` - Your project's rules and conventions
+    - `.agents/` directory with templates and reference files
+    - `.spec-loop/` directory for session logs (gitignored)
+
+    <Accordion title="What gets auto-detected?">
+      spec-loop detects your project type and sets appropriate commands:
+
+      - **TypeScript/JavaScript**: `npm run lint && npm run typecheck`
+      - **Python**: `pylint` or `ruff check`
+      - **Rust**: `cargo check`
+      - **Go**: `go build`
+      - **Ruby**: `rubocop`
+      - **Java**: `mvn compile`
+      - **Swift**: `swift build`
+    </Accordion>
+  </Step>
+
+  <Step title="Configure your project rules">
+    Edit `AGENTS.md` to document your project's conventions:
+
+    ```markdown
+    # Project Rules
+
+    ## Architecture
+    - Use MVC pattern
+    - All API routes in src/routes/
+    - Business logic in src/services/
+
+    ## Naming Conventions
+    - Files: kebab-case
+    - Functions: camelCase
+    - Classes: PascalCase
+
+    ## Review Checklist
+    - [ ] TypeScript strict mode passes
+    - [ ] All functions have JSDoc comments
+    - [ ] Error handling with try-catch
+    ```
+
+    <Note>
+      The build and review agents read this file before every task. Make it specific!
+    </Note>
+  </Step>
+
+  <Step title="Install Claude Code skills">
+    Add spec-loop skills to your Claude Code workspace:
+
+    ```bash
+    npx -y skills add surajpatildev/spec-loop --all -y
+    ```
+
+    This installs:
+    - `/spec-loop-spec` - Create feature specifications
+    - `/spec-loop-status` - Check progress
+  </Step>
+
+  <Step title="Create a feature spec">
+    Open Claude Code and create your first spec:
+
+    ```
+    /spec-loop-spec Add user authentication with JWT tokens
+    ```
+
+    Claude will:
+    1. Research your codebase
+    2. Design the feature backward from goals
+    3. Break it into individual tasks
+    4. Create `.agents/specs/user-auth/` with spec.md and task files
+    5. Wait for your approval
+
+    <Accordion title="Example spec structure">
+      ```
+      .agents/specs/user-auth/
+      ├── spec.md           # Feature overview and requirements
+      ├── progress.md       # Task completion log
+      └── tasks/
+          ├── 01-add-user-model.md
+          ├── 02-add-jwt-service.md
+          ├── 03-add-auth-middleware.md
+          ├── 04-add-login-route.md
+          ├── 05-add-register-route.md
+          └── 06-add-tests.md
+      ```
+    </Accordion>
+
+    Review the spec and approve when ready.
+  </Step>
+
+  <Step title="Run the development loop">
+    Start the autonomous build-review-fix cycle:
+
+    ```bash
+    spec-loop run
+    ```
+
+    For each task, spec-loop will:
+    1. **Build** - Claude implements the task
+    2. **Review** - Another agent reviews the changes
+    3. **Fix** - If review fails, Claude fixes issues
+    4. **Commit** - On success, changes are committed
+
+    <Note>
+      You'll see live progress with task status, elapsed time, and cost tracking.
+    </Note>
+  </Step>
+
+  <Step title="Monitor progress">
+    While the loop runs, check status anytime:
+
+    ```bash
+    spec-loop status
+    ```
+
+    Or use the Claude Code skill:
+
+    ```
+    /spec-loop-status
+    ```
+
+    This shows:
+    - Tasks completed vs remaining
+    - Current task in progress
+    - Recent commits
+    - Next eligible task
+  </Step>
+
+  <Step title="Review and merge">
+    When all tasks are complete:
+
+    1. Review the session logs in `.spec-loop/sessions/`
+    2. Check the feature branch commits
+    3. Run your full test suite
+    4. Create a pull request
+
+    ```bash
+    # Review session logs
+    cat .spec-loop/sessions/latest/session.md
+
+    # Check commits
+    git log --oneline
+
+    # Run full test suite
+    npm test
+
+    # Push and create PR
+    git push -u origin feat/user-auth
+    gh pr create
+    ```
+  </Step>
+</Steps>
+
+## Example Terminal Output
+
+```
+spec-loop v0.3.1
+
+╭─ Spec ──────────────────────────────────────────╮
+│                                                  │
+│  user-auth                                       │
+│  ████████░░░░░░░░ 3/7 done ◆ 4 remaining         │
+│  2 pending ◆ 1 in-progress                        │
+│  1 in-review ◆ 0 blocked                          │
+│  feat/user-auth                                  │
+│                                                  │
+╰──────────────────────────────────────────────────╯
+
+── Iteration 1 of 25 ─────────────────────────────
+
+● build
+    → session  model=claude-opus-4-6  id=9af31c8d
+    ⠹ #4 Bash npm run lint && npm run typecheck 00:12
+    → Read     AGENTS.md
+    → Write    src/api/routes/auth.ts
+    → Bash     npm run lint && npm run typecheck
+    ✓ result   45s ◆ $0.12 ◆ 8 tools
+
+● review
+    ✓ PASS     0 must-fix ◆ 0 should-fix
+
+✓ Task 4 complete → 3 remaining
+```
+
+## Common Options
+
+<Accordion title="Run with custom limits">
+  Control loop behavior with flags:
+
+  ```bash
+  # Complete at most 3 tasks
+  spec-loop run --max-tasks 3
+
+  # Allow up to 50 iterations
+  spec-loop run --max-loops 50
+
+  # More review-fix retries
+  spec-loop run --max-review-fix-loops 5
+  ```
+</Accordion>
+
+<Accordion title="Run a single iteration">
+  Test the loop with one build-review cycle:
+
+  ```bash
+  spec-loop run --once
+  ```
+
+  Good for:
+  - Testing your AGENTS.md configuration
+  - Verifying verify/test commands work
+  - Debugging issues
+</Accordion>
+
+<Accordion title="Skip review phase">
+  Build tasks without code review:
+
+  ```bash
+  spec-loop run --skip-review
+  ```
+
+  <Warning>
+    Only use this if you'll manually review changes later. The review agent catches issues early.
+  </Warning>
+</Accordion>
+
+<Accordion title="Resume interrupted runs">
+  If a run is interrupted, resume from where it stopped:
+
+  ```bash
+  spec-loop run --resume
+  ```
+
+  Picks up the last session and continues.
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Features" icon="rocket" href="/examples/advanced-features">
+    Learn about parallel tasks, circuit breaker, and session logs
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/help/troubleshooting">
+    Common issues and solutions
+  </Card>
+</CardGroup>

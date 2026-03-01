@@ -1,0 +1,565 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for spec-loop
+---
+
+Solutions to common spec-loop problems and error messages.
+
+## Installation Issues
+
+### `spec-loop` command not found
+
+<Accordion title="PATH not configured">
+  After installation, add `~/.local/bin` to your PATH:
+
+  ```bash
+  export PATH="$HOME/.local/bin:$PATH"
+  hash -r
+  spec-loop version
+  ```
+
+  Make it permanent by adding to your shell profile:
+
+  ```bash
+  # For bash
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+  source ~/.bashrc
+
+  # For zsh
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+  source ~/.zshrc
+  ```
+</Accordion>
+
+<Accordion title="Installation failed">
+  Check the build log if installation fails:
+
+  ```bash
+  # The installer shows the last 40 log lines on error
+  # Look for specific error messages
+  ```
+
+  Common causes:
+  - **Cargo missing**: Install Rust toolchain
+    ```bash
+    curl https://sh.rustup.rs -sSf | sh
+    source $HOME/.cargo/env
+    ```
+  - **tar missing**: Install tar
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get install tar
+
+    # macOS (usually pre-installed)
+    xcode-select --install
+    ```
+  - **Network issues**: Check connection and retry
+</Accordion>
+
+### Installation takes too long
+
+First install may take 30-90 seconds to compile Rust code.
+
+<Note>
+  Subsequent installs (updates) use cargo's cache and are faster.
+</Note>
+
+If it takes longer:
+- Check CPU usage (compilation is CPU-intensive)
+- Ensure sufficient disk space (~500MB for Rust toolchain)
+- Try installing during off-peak hours if on shared infrastructure
+
+### Reinstall latest version
+
+```bash
+curl -sSf https://raw.githubusercontent.com/surajpatildev/spec-loop/main/install.sh | bash
+hash -r
+spec-loop version
+```
+
+## Configuration Issues
+
+### `spec-loop init` fails
+
+<Accordion title="Not a git repository">
+  spec-loop requires git for commit tracking:
+
+  ```bash
+  git init
+  git add .
+  git commit -m "Initial commit"
+  spec-loop init
+  ```
+</Accordion>
+
+<Accordion title="Permission denied">
+  Ensure write permissions in project directory:
+
+  ```bash
+  # Check permissions
+  ls -la
+
+  # Fix if needed
+  chmod u+w .
+  ```
+</Accordion>
+
+### Auto-detection picks wrong project type
+
+Override in `.speclooprc`:
+
+```bash
+# Edit .speclooprc
+PROJECT_TYPE="typescript"
+VERIFY_COMMAND="npm run lint && npm run typecheck"
+TEST_COMMAND="npm test"
+```
+
+Supported types: `typescript`, `javascript`, `python`, `rust`, `go`, `ruby`, `java`, `swift`
+
+### Verify command fails
+
+<Steps>
+  <Step title="Test command manually">
+    ```bash
+    # Run the verify command from .speclooprc
+    npm run lint && npm run typecheck
+    ```
+
+    Fix any issues in your project first.
+  </Step>
+
+  <Step title="Simplify verify command">
+    If command is too strict, simplify:
+
+    ```bash
+    # Before (strict)
+    VERIFY_COMMAND="npm run lint && npm run typecheck && npm test"
+
+    # After (relaxed)
+    VERIFY_COMMAND="npm run typecheck"
+    ```
+  </Step>
+
+  <Step title="Check for missing scripts">
+    Ensure package.json has required scripts:
+
+    ```json
+    {
+      "scripts": {
+        "lint": "eslint src/",
+        "typecheck": "tsc --noEmit"
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Runtime Issues
+
+### Claude Code not found
+
+<Accordion title="Claude CLI not installed">
+  Install Claude Code from [claude.ai/claude-code](https://claude.ai/claude-code).
+
+  Verify installation:
+
+  ```bash
+  which claude
+  claude --version
+  ```
+</Accordion>
+
+<Accordion title="Claude in non-standard location">
+  Set `CLAUDE_BIN` environment variable:
+
+  ```bash
+  CLAUDE_BIN=/custom/path/to/claude spec-loop run
+  ```
+
+  Or add to `.speclooprc`:
+
+  ```bash
+  # .speclooprc
+  CLAUDE_BIN="/custom/path/to/claude"
+  ```
+</Accordion>
+
+### No active specs found
+
+<Warning>
+  `spec-loop run` requires at least one spec with pending tasks.
+</Warning>
+
+<Steps>
+  <Step title="Create a spec">
+    Use Claude Code skill:
+
+    ```
+    /spec-loop-spec Add feature name and description
+    ```
+
+    Or manually create in `.agents/specs/feature-name/`
+  </Step>
+
+  <Step title="Check spec status">
+    Ensure spec has pending tasks:
+
+    ```bash
+    spec-loop status
+    ```
+
+    Or check task files:
+
+    ```bash
+    grep "Status:" .agents/specs/*/tasks/*.md
+    ```
+  </Step>
+
+  <Step title="Specify spec explicitly">
+    If auto-detection fails:
+
+    ```bash
+    spec-loop run --spec .agents/specs/feature-name
+    ```
+  </Step>
+</Steps>
+
+### Circuit breaker trips
+
+Stagnation detection prevents infinite loops.
+
+<Accordion title="No progress after multiple iterations">
+  **Symptoms:**
+  ```
+  ✗ Circuit breaker: OPEN
+  Reason: No progress after 8 iterations
+  ```
+
+  **Solutions:**
+
+  1. **Review session logs**:
+     ```bash
+     cat .spec-loop/sessions/latest/run.md
+     ```
+
+  2. **Common causes**:
+     - Review criteria too strict → Relax `AGENTS.md` checklist
+     - Task too complex → Break into smaller tasks
+     - Missing context → Add examples to `.agents/reference/`
+     - Verify command issues → Simplify in `.speclooprc`
+
+  3. **Resume after fixing**:
+     ```bash
+     spec-loop run --resume
+     ```
+
+  4. **Or skip review**:
+     ```bash
+     spec-loop run --skip-review --once
+     ```
+</Accordion>
+
+<Accordion title="Task stuck in-review">
+  **Symptoms:**
+  ```
+  Task 4: in-review for 5 iterations
+  ```
+
+  **Solutions:**
+
+  1. **Check review output**:
+     ```bash
+     grep -A 50 "review" .spec-loop/sessions/latest/run.md | tail -50
+     ```
+
+  2. **Manual review**:
+     ```bash
+     git diff
+     ```
+
+  3. **Adjust acceptance criteria** in task file to be more achievable
+
+  4. **Fix manually and mark done**:
+     ```bash
+     # Fix the code yourself
+     git add .
+     git commit -m "Fix task 4 manually"
+
+     # Update task status to 'done'
+     # Edit .agents/specs/*/tasks/04-*.md
+     # Change: Status: in-review → Status: done
+     ```
+</Accordion>
+
+### High API costs
+
+<Accordion title="Monitor costs per run">
+  Check session.json after runs:
+
+  ```bash
+  jq '.total_cost' .spec-loop/sessions/latest/session.json
+  ```
+
+  Track cumulative costs:
+
+  ```bash
+  jq -s 'map(.total_cost) | add' .spec-loop/sessions/*/session.json
+  ```
+</Accordion>
+
+<Accordion title="Cost optimization strategies">
+  1. **Limit tasks per run**:
+     ```bash
+     spec-loop run --max-tasks 3
+     ```
+
+  2. **Use smaller task sizes**:
+     - Break large (L) tasks into small (S) or medium (M)
+     - Smaller context = fewer tokens
+
+  3. **Optimize verify command**:
+     - Remove slow checks (tests, linting)
+     - Keep only typecheck for fast validation
+
+  4. **Add reference files**:
+     - Provide examples in `.agents/reference/`
+     - Reduces back-and-forth exploration
+
+  5. **Skip review for drafts**:
+     ```bash
+     spec-loop run --skip-review
+     ```
+     Review manually instead.
+</Accordion>
+
+### Session logs too large
+
+<Accordion title="Disable verbose mode">
+  Don't use `--verbose` unless debugging:
+
+  ```bash
+  # Generates large logs
+  spec-loop run --verbose
+
+  # Standard (compact logs)
+  spec-loop run
+  ```
+</Accordion>
+
+<Accordion title="Archive old sessions">
+  Move completed session logs:
+
+  ```bash
+  mkdir -p .spec-loop/archive
+  mv .spec-loop/sessions/2026* .spec-loop/archive/
+  ```
+
+  Or delete:
+
+  ```bash
+  rm -rf .spec-loop/sessions/2026*
+  ```
+
+  <Note>
+    Session logs are gitignored by default.
+  </Note>
+</Accordion>
+
+## Spec & Task Issues
+
+### Task dependencies not respected
+
+<Accordion title="Check dependency syntax">
+  Task dependencies must use exact task numbers:
+
+  ```markdown
+  # Task 5: Add Auth Routes
+
+  > Depends on: 2, 3, 4
+  ```
+
+  Not task names, just numbers separated by commas.
+</Accordion>
+
+<Accordion title="Circular dependencies">
+  spec-loop can't resolve circular dependencies:
+
+  ```
+  Task 2 depends on: 3
+  Task 3 depends on: 2
+  ```
+
+  Fix by breaking the cycle:
+  - Extract shared logic into Task 1
+  - Make both 2 and 3 depend on 1
+</Accordion>
+
+### Task files not recognized
+
+<Accordion title="Check file naming">
+  Task files must follow pattern:
+
+  ```
+  tasks/NN-verb-noun.md
+  ```
+
+  Examples:
+  - `01-add-user-model.md` ✓
+  - `02-create-auth-service.md` ✓
+  - `task-3.md` ✗ (wrong format)
+  - `add-feature.md` ✗ (missing number)
+</Accordion>
+
+<Accordion title="Check file location">
+  Tasks must be in `tasks/` subdirectory:
+
+  ```
+  .agents/specs/feature-name/
+  ├── spec.md
+  └── tasks/
+      ├── 01-task.md
+      └── 02-task.md
+  ```
+
+  Not at spec root level.
+</Accordion>
+
+### `/spec-loop-spec` skill not found
+
+<Accordion title="Skills not installed">
+  Install skills in your project:
+
+  ```bash
+  npx -y skills add surajpatildev/spec-loop --all -y
+  ```
+
+  Verify installation:
+
+  ```bash
+  npx -y skills add surajpatildev/spec-loop -l
+  ```
+</Accordion>
+
+<Accordion title="Wrong directory">
+  Skills are project-specific. Run in your project root:
+
+  ```bash
+  cd your-project
+  npx -y skills add surajpatildev/spec-loop --all -y
+  ```
+</Accordion>
+
+## Git Issues
+
+### Commits not created
+
+<Accordion title="Review phase failing">
+  Commits only happen after successful review:
+
+  1. Check if review is passing:
+     ```bash
+     grep "review" .spec-loop/sessions/latest/session.md
+     ```
+
+  2. If review fails repeatedly, fix manually or skip:
+     ```bash
+     spec-loop run --skip-review
+     ```
+</Accordion>
+
+<Accordion title="Git hooks blocking commits">
+  If pre-commit hooks fail:
+
+  1. Check hook output in run.md
+  2. Fix hook issues
+  3. Or temporarily disable:
+     ```bash
+     git config core.hooksPath /dev/null
+     spec-loop run
+     git config --unset core.hooksPath
+     ```
+</Accordion>
+
+### Merge conflicts
+
+<Accordion title="Feature branch diverged">
+  If main branch updated during spec-loop run:
+
+  ```bash
+  # Pause spec-loop (Ctrl+C if running)
+
+  # Update main and rebase
+  git fetch origin
+  git rebase origin/main
+
+  # Resolve conflicts
+  git add .
+  git rebase --continue
+
+  # Resume
+  spec-loop run --resume
+  ```
+</Accordion>
+
+## Performance Issues
+
+### Loop runs slowly
+
+<Accordion title="Verify command timeout">
+  Long verify commands slow each iteration:
+
+  ```bash
+  # Measure verify time
+  time npm run lint && npm run typecheck
+  ```
+
+  Optimize:
+  - Use faster linters (e.g., `eslint` over `tslint`)
+  - Cache TypeScript builds
+  - Skip tests in verify, run separately
+</Accordion>
+
+<Accordion title="Large context per task">
+  Reduce context size:
+
+  1. **Smaller tasks**: Break L tasks into S/M
+  2. **Focused specs**: One feature per spec
+  3. **Minimal reference files**: Only essential examples
+</Accordion>
+
+### High memory usage
+
+<Accordion title="Too many concurrent Claude sessions">
+  Wait for parallel task support. Currently runs one task at a time.
+</Accordion>
+
+<Accordion title="Large git repository">
+  spec-loop reads git history. For very large repos:
+
+  1. Use shallow clone:
+     ```bash
+     git clone --depth 100 <repo>
+     ```
+
+  2. Or work in subdirectory with smaller history
+</Accordion>
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/surajpatildev/spec-loop/issues">
+    Report bugs or request features
+  </Card>
+  <Card title="Contributing Guide" icon="code-pull-request" href="/help/contributing">
+    Help improve spec-loop
+  </Card>
+</CardGroup>
+
+<Note>
+  When reporting issues, include:
+  - `spec-loop version` output
+  - Relevant logs from `.spec-loop/sessions/latest/`
+  - Your `.speclooprc` configuration
+  - Steps to reproduce
+</Note>
