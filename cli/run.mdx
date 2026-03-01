@@ -104,7 +104,7 @@ spec-loop run
 ```
 
 **Output**:
-```
+```text
 spec-loop v0.3.1
 
 ╭─ Spec ──────────────────────────────────────────╮
@@ -287,7 +287,7 @@ CB_COOLDOWN_MINUTES=30
 ```
 
 **Output when tripped**:
-```
+```text
 ⚠ Circuit breaker tripped (no progress for 3 iterations)
   Cooldown: 30 minutes
   Next allowed run: 2026-03-01 15:30:22
@@ -376,7 +376,7 @@ Before starting, `spec-loop run` verifies:
 - ✓ `MAX_REVIEW_FIX_LOOPS` > 0
 
 **Failure output**:
-```bash
+```text
 ✗ No .speclooprc found. Run 'spec-loop init' first.
 ```
 

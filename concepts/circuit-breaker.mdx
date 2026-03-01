@@ -37,7 +37,7 @@ pub fn status_signature(spec_dir: &Path) -> String {
 ```
 
 Example signature:
-```
+```text
 01-models.md:done;02-routes.md:in-progress;03-tests.md:pending;
 ```
 
@@ -302,7 +302,7 @@ Session: .spec-loop/sessions/20260301_143022_user-auth/
 ## Progress Detection Examples
 
 **Progress made (resets failures):**
-```
+```text
 # Before
 01-models.md:pending;02-routes.md:pending;
 
@@ -312,7 +312,7 @@ Session: .spec-loop/sessions/20260301_143022_user-auth/
 Status changed → progress detected → failures = 0.
 
 **No progress (increments failures):**
-```
+```text
 # Before
 01-models.md:in-review;02-routes.md:pending;
 
@@ -322,7 +322,7 @@ Status changed → progress detected → failures = 0.
 Status unchanged → no progress → failures += 1.
 
 **Completing tasks (progress):**
-```
+```text
 # Before
 01-models.md:in-review;02-routes.md:pending;
 
@@ -345,7 +345,7 @@ Task marked done → progress detected → failures = 0.
     Missing dependencies cause repeated failures.
     
     Document in task files:
-    ```markdown
+    ```text
     > Depends on: 1, 2
     ```
     

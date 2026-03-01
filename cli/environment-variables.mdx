@@ -9,7 +9,7 @@ spec-loop can be configured via environment variables, which override settings f
 
 ## Configuration Precedence
 
-```
+```text
 Defaults < .speclooprc < Environment Variables < CLI Flags
 ```
 
@@ -139,14 +139,14 @@ spec-loop run --max-loops 10  # Overrides environment variable
 
 ### Per-Command Override
 
-```bash
+```text
 # Run once with custom limits
 SPECLOOP_MAX_LOOPS=10 spec-loop run
 ```
 
 ### Session-Wide Configuration
 
-```bash
+```text
 # Set for current shell session
 export SPECLOOP_MAX_LOOPS=50
 export SPECLOOP_MAX_TASKS_PER_RUN=5
@@ -157,7 +157,7 @@ spec-loop run  # Still uses same settings
 
 ### Shell Profile Configuration
 
-```bash
+```text
 # Add to ~/.bashrc or ~/.zshrc
 export CLAUDE_BIN="$HOME/.local/bin/claude"
 export SPECLOOP_MAX_LOOPS=30
@@ -201,7 +201,7 @@ RUN spec-loop run
 
 ### Development Environment
 
-```bash
+```text
 # ~/.bashrc or ~/.zshrc
 # Local development with verbose output
 export CLAUDE_EXTRA_ARGS="--verbose"
@@ -210,7 +210,7 @@ export SPECLOOP_MAX_LOOPS=30
 
 ### CI Environment
 
-```bash
+```text
 # Increase limits for CI
 export SPECLOOP_MAX_LOOPS=100
 export SPECLOOP_MAX_REVIEW_FIX_LOOPS=5
@@ -219,7 +219,7 @@ export SPECLOOP_MAX_TASKS_PER_RUN=20
 
 ### Testing Environment
 
-```bash
+```text
 # Strict limits for testing
 export SPECLOOP_MAX_LOOPS=5
 export SPECLOOP_MAX_TASKS_PER_RUN=1
@@ -227,7 +227,7 @@ export SPECLOOP_MAX_TASKS_PER_RUN=1
 
 ### Custom Paths
 
-```bash
+```text
 # Use different spec location
 export SPECLOOP_SPECS_DIR="docs/feature-specs"
 export SPECLOOP_SESSION_DIR="logs/spec-loop"
@@ -248,7 +248,7 @@ spec-loop run --dry-run --verbose
 
 ## Unsetting Variables
 
-```bash
+```text
 # Remove environment variable
 unset SPECLOOP_MAX_LOOPS
 
@@ -266,7 +266,7 @@ unset CLAUDE_EXTRA_ARGS
 
 Invalid environment variable values are ignored with a warning:
 
-```bash
+```text
 export SPECLOOP_MAX_LOOPS=invalid
 spec-loop run
 # Uses default or .speclooprc value instead
@@ -274,7 +274,7 @@ spec-loop run
 
 Numeric variables must be valid integers:
 
-```bash
+```text
 export SPECLOOP_MAX_LOOPS=10.5  # Invalid - not an integer
 spec-loop run
 # Ignores invalid value, uses .speclooprc or default
@@ -288,7 +288,7 @@ spec-loop run
 
 <Tip>
 **Use separate credentials** for CI/CD environments:
-```bash
+```text
 # Development
 export CLAUDE_BIN="claude"
 
@@ -301,7 +301,7 @@ export CLAUDE_BIN="/opt/claude-ci"
 
 ### Variable not taking effect
 
-```bash
+```text
 # Check if variable is set
 echo $SPECLOOP_MAX_LOOPS
 
@@ -312,7 +312,7 @@ spec-loop run --max-loops 10
 
 ### Variable not visible to spec-loop
 
-```bash
+```text
 # Export is required for child processes
 SPECLOOP_MAX_LOOPS=50  # Wrong - not exported
 export SPECLOOP_MAX_LOOPS=50  # Correct
@@ -323,7 +323,7 @@ SPECLOOP_MAX_LOOPS=50 spec-loop run
 
 ### Shell profile not loading
 
-```bash
+```text
 # Reload shell configuration
 source ~/.bashrc  # or ~/.zshrc
 

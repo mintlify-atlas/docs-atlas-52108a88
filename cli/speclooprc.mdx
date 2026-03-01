@@ -17,7 +17,7 @@ spec-loop looks for `.speclooprc` in the current directory when running commands
 
 ## Format
 
-```bash
+```text
 # Comments start with #
 KEY="value"
 ANOTHER_KEY="another value"
@@ -227,7 +227,7 @@ Settings are applied in this order (later overrides earlier):
 
 ### Example Override Chain
 
-```bash
+```text
 # .speclooprc
 MAX_LOOPS=25
 
@@ -244,7 +244,7 @@ spec-loop run --max-loops 10
 spec-loop validates configuration on startup:
 
 <ResponseField name="Missing .speclooprc">
-  ```
+  ```text
   ✗ No .speclooprc found. Run 'spec-loop init' first.
   ```
   
@@ -252,7 +252,7 @@ spec-loop validates configuration on startup:
 </ResponseField>
 
 <ResponseField name="Invalid MAX_LOOPS">
-  ```
+  ```text
   ✗ MAX_LOOPS must be a positive integer (got: 0)
   ```
   
@@ -260,7 +260,7 @@ spec-loop validates configuration on startup:
 </ResponseField>
 
 <ResponseField name="Invalid MAX_REVIEW_FIX_LOOPS">
-  ```
+  ```text
   ✗ MAX_REVIEW_FIX_LOOPS must be a positive integer (got: 0)
   ```
   
@@ -271,7 +271,7 @@ spec-loop validates configuration on startup:
 
 Lines starting with `#` are ignored:
 
-```bash
+```text
 # This is a comment
 PROJECT_TYPE="typescript"  # Inline comments NOT supported
 

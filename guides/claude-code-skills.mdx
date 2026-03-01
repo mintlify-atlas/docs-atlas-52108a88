@@ -31,7 +31,7 @@ You should see:
 
 ### List Available Skills Without Installing
 
-```bash
+```text
 npx -y skills add surajpatildev/spec-loop -l
 ```
 
@@ -84,7 +84,7 @@ Claude will:
 
   <Step title="Generate Spec Directory">
     Creates:
-    ```
+    ```text
     .agents/specs/<feature-name>/
     ├── spec.md
     ├── progress.md
@@ -255,7 +255,7 @@ Claude will:
 
 ### Example Output
 
-```
+```text
 ## Active: user-auth
 
 Branch: feat/user-auth
@@ -291,7 +291,7 @@ It reads:
 
 If you have multiple specs in progress:
 
-```
+```text
 ## Active: user-auth
 
 Branch: feat/user-auth
@@ -316,7 +316,7 @@ All active specs are shown.
 
 If a task is marked `in-progress` but has no recent commits:
 
-```
+```text
 Task 3: in-progress (possibly stale — no commits since 2026-02-28)
 ```
 
@@ -371,7 +371,7 @@ Skills respect project configuration:
 
 If you have custom templates in `.agents/templates/`:
 
-```
+```text
 .agents/templates/
 ├── spec.md           # Custom spec structure
 ├── task.md           # Custom task structure  

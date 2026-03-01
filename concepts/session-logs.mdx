@@ -512,7 +512,7 @@ jq '.iterations | group_by(.task) | map({task: .[0].task, cost: map(.cost_usd) |
 ```
 
 Output:
-```json
+```text
 [
   {"task": "Add user model", "cost": 0.08},
   {"task": "Add auth routes", "cost": 0.18},

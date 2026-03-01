@@ -319,7 +319,7 @@ spec-loop run --max-loops 50 --max-tasks 10
 
 ## Project Structure After Init
 
-```
+```text
 your-project/
 ├── .speclooprc              # Project config
 ├── .agents/
@@ -373,7 +373,7 @@ Edit templates in `.agents/templates/` to match your project:
 
 The `AGENTS.md` file contains project conventions for Claude Code:
 
-```markdown
+```text
 # AGENTS.md
 
 Project conventions and architecture rules for AI agents.
@@ -453,7 +453,7 @@ Verify command runs after every build. Keep it fast:
 
 ### Clear error output
 
-```bash
+```text
 # Good: Clear failure messages
 VERIFY_COMMAND="eslint . && tsc --noEmit"
 
@@ -465,7 +465,7 @@ Review phase needs clear errors to generate fix instructions.
 
 ### Exit codes matter
 
-```bash
+```text
 # Ensure commands fail properly
 VERIFY_COMMAND="npm run lint && npm run typecheck"
 

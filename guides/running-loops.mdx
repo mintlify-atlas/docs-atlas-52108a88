@@ -147,7 +147,7 @@ spec-loop run --resume
 
 Each run creates session logs in `.spec-loop/sessions/`:
 
-```
+```text
 .spec-loop/sessions/20260301_143022_user-auth/
 ├── session.json     # Machine-readable analytics
 ├── session.md       # Iteration summaries
@@ -281,7 +281,7 @@ Circuit breaker prevents infinite loops when the model gets stuck. Review the se
 
 Configure in `.speclooprc`:
 
-```bash
+```text
 CB_NO_PROGRESS_THRESHOLD=5      # Iterations before triggering
 CB_COOLDOWN_MINUTES=60          # Cooldown before retry
 ```
@@ -292,7 +292,7 @@ CB_COOLDOWN_MINUTES=60          # Cooldown before retry
 
 spec-loop displays real-time progress:
 
-```
+```text
 spec-loop v0.3.1
 
 ╭─ Spec ──────────────────────────────────────────╮
@@ -415,7 +415,7 @@ If verify/test commands fail, review treats them as must-fix issues.
 
 Output format:
 
-```
+```text
 REVIEW_STATUS: PASS
 MUST_FIX_COUNT: 0
 SHOULD_FIX_COUNT: 1
@@ -571,7 +571,7 @@ spec-loop run --spec .agents/specs/user-auth  # Will review in-review tasks
 
 spec-loop tracks cost per iteration and session:
 
-```json
+```text
 // session.json
 {
   "total_cost_usd": 2.47,
