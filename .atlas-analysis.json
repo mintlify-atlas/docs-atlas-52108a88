@@ -1,0 +1,102 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "spec-loop",
+  "projectDescription": "Spec-driven autonomous development loop powered by Claude Code for automated feature implementation through build-review-fix cycles.",
+  "theme": "aspen",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/specs-and-tasks",
+              "concepts/workflow",
+              "concepts/circuit-breaker",
+              "concepts/session-logs"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-specs",
+              "guides/running-loops",
+              "guides/configuration",
+              "guides/claude-code-skills"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/init",
+              "cli/run",
+              "cli/status",
+              "cli/version"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "cli/speclooprc",
+              "cli/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/basic-workflow",
+              "examples/advanced-features"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "help/troubleshooting",
+              "help/contributing",
+              "help/roadmap"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Spec-driven task management with individual task files",
+    "Automated build-review-fix loop with Claude Code integration",
+    "Circuit breaker for stagnation detection and safety",
+    "Session logging and resume capabilities",
+    "Auto-detection of project types and commands",
+    "Interactive terminal UI with live progress tracking"
+  ],
+  "publicApiSurface": [
+    "spec-loop init - Initialize spec-loop in current project",
+    "spec-loop run - Run build-review-fix loop",
+    "spec-loop status - Show current spec progress",
+    "spec-loop version - Show version",
+    "/spec-loop-spec - Claude Code skill for creating feature specs",
+    "/spec-loop-status - Claude Code skill for checking progress"
+  ]
+}
